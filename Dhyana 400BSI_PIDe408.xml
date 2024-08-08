@@ -8,7 +8,7 @@
         <Brightness>255</Brightness>
         <ATExposure>0</ATExposure>
         <FMExposure>0</FMExposure>
-        <LNExposure>2525</LNExposure>
+        <LNExposure>2424</LNExposure>
         <BlackLevel>70</BlackLevel>
         <FlatFieldCorrection>0</FlatFieldCorrection>
         <Sharpness>0</Sharpness>
@@ -34,7 +34,7 @@
         <Vertical>0</Vertical>
         <Shift>0</Shift>
         <VerticalCorrection>0</VerticalCorrection>
-        <USBLed>1</USBLed>
+        <USBLed>0</USBLed>
         <TimeStampEn>0</TimeStampEn>
         <AtlevelGear>1</AtlevelGear>
         <IgnorePercentage>10</IgnorePercentage>

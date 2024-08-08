@@ -32,7 +32,7 @@ def read_requirements(path):
 setup(
     name="pylab",
     version=read("pylab", "VERSION"),
-    description="Awesome pylab created by Gronemeyer",
+    description="PyLab is an open-source image acquisition Python software package build for the Sipe Laboratory at Pennsylvania State University.",
     url="https://github.com/Gronemeyer/PyLab/",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",

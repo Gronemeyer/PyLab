@@ -43,7 +43,7 @@ stop_event = threading.Event()
 ############
 
 print("loading Micro-Manager CORE instance...")
-mmc = CMMCorePlus(mm_path=MM_DIR)
+mmc = CMMCorePlus(mm_path=r'C:/Program Files/Micro-Manager-2.0')
 print("Micro-Manager CORE instance loaded. Initializing configuration file...")
 mmc.loadSystemConfiguration(MM_CONFIG)
 
@@ -51,13 +51,13 @@ mmc.setProperty('Arduino-Switch', 'Sequence', 'On')
 mmc.setProperty('Arduino-Shutter', 'OnOff', '0')
 mmc.setProperty('Dhyana', 'Output Trigger Port', '2')
 mmc.setProperty('Core', 'Shutter', 'Arduino-Shutter')
-
+mmc.mda.engine.use_hardware_sequencing = True
 # Default parameters for file saving
 save_dir = r'C:/dev/sipefield/devOutput'
 protocol_id = "devTIFF"
 subject_id = "001"
 session_id = "01"
-num_frames = 1000
+num_frames = 10
 
 class NIDAQ:
     '''
@@ -108,14 +108,12 @@ class NIDAQ:
         self.trigger(True)
         time.sleep(duration)
         self.trigger(False)
-
-@mmc.events.devicePropertyChanged('Arduino-Switch', 'State').connect
 class FrameSaver(threading.Thread):
-    def __init__(self, frame_deque, stop_event, num_frames):
+    def __init__(self, frame_deque, stop_event, filename, num_frames):
         super().__init__()
         self.frame_deque = frame_deque
         self.stop_event = stop_event
-        self.filename = save_to_bids()
+        self.filename = filename
         self.num_frames = num_frames
         self.lock = threading.Lock()
 
@@ -142,65 +140,23 @@ class FrameSaver(threading.Thread):
             # Ensure progress bar is properly cleared
             pbar.close()
             self.frame_queue = collections.deque()
-
-def save_to_bids(path=SAVE_DIR):
-    """
-    Make a BIDS formatted directory 
-    
-    Accesses global variables for protocol_id, subject_id, session_id
-    
-    Organizes the directory structure as follows:
-    path/protocol_id-subject_id/ses-session_id/anat
-    """
+def mkdir_p():
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S') # get current timestamp
-    anat_dir = os.path.join(path, f"{protocol_id}-{subject_id}", f"ses-{session_id}", "anat")
+    anat_dir = os.path.join(save_dir, f"{protocol_id}-{subject_id}", f"ses-{session_id}", "anat")
     os.makedirs(anat_dir, exist_ok=True) # create the directory if it doesn't exist
     filename = os.path.join(anat_dir, f"sub-{subject_id}_ses-{session_id}_{timestamp}.tiff")
-    return filename # returns the filename
-
-def load_sequence():
+    return filename
+# Function to start the MDA sequence
+def start_acquisition(viewer: napari.Viewer, wait_for_trigger):
+    
     value_sequence = ['4', '16', '4', '16', '4', '16', '4', '16', '4', '16', '4', '16']
     dev = 'Arduino-Switch'
     prop = 'State'
-    mmc.loadDevice('Arduino-Switch', 'Arduino', dev)
     mmc.loadPropertySequence(dev, prop, value_sequence)
-
-class Arduino():
-    def __init__(self, mmc):
-        self.switch = 'Arduino-Switch'
-        self.shutter = 'Arduino-Shutter'
-        self.switch_state = mmc.getPropertyObject(self.switch, 'State')
-        self.shutter_state = mmc.getPropertyObject(self.shutter, 'OnOff')
-        self.switch_state = mmc.getProperty(self.switch, self.switch_state)
-        self.shutter_state = mmc.getProperty(self.shutter, self.shutter_state)
-        self.state = mmc.getProperty(self.switch, self.switch_state)
-        
-    def switch_blue(self):
-        mmc.setProperty(self.switch, self.switch_state, 4)
-        
-    def switch_violet(self):
-        mmc.setProperty(self.switch, self.switch_state, 16)
-        
-    def shutter_open(self):
-        self.shutter_state.setValue('1')
-        
-    def shutter_close(self):
-        mmc.setProperty(self.shutter, self.shutter_state, 0)
-        
-    def load_device(self, device):
-        if device == 'Arduino-Switch':
-            mmc.loadDevice('Arduino-Switch')
-        elif device == 'Arduino-Shutter':
-            mmc.loadDevice('Arduino-Shutter')
-
-# Function to start the MDA sequence
-def start_acquisition(wait_for_trigger):
     
-    load_sequence()
-    dev = 'Arduino-Switch'
-    prop = 'State'
     ###THREADING
-    saving_thread = FrameSaver(frame_queue, stop_event, num_frames)
+    output_filename = mkdir_p()
+    saving_thread = FrameSaver(frame_queue, stop_event, output_filename, num_frames)
     ############
 
     if wait_for_trigger:
@@ -224,13 +180,11 @@ def start_acquisition(wait_for_trigger):
     saving_thread.start() # Start the thread to save the frames to disk
 
     print(time.ctime(time.time()), ' trigger received, starting acquisition')
-    mmc.startPropertySequence(dev, prop)
-    mmc.startContinuousSequenceAcquisition(0) 
+    mmc.startContinuousSequenceAcquisition(0) and mmc.stopPropertySequence(dev, prop)
     time.sleep(1)  # Allow some time for the camera to start capturing images
 
     start_time = time.time()  # Start time of the acquisition
     for i in range(num_frames):
-        
         while mmc.getRemainingImageCount() == 0:
             time.sleep(0.1) 
             
@@ -238,7 +192,6 @@ def start_acquisition(wait_for_trigger):
             frame_queue.append(mmc.popNextImage())
 
     mmc.stopSequenceAcquisition()
-    mmc.stopPropertySequence(dev, prop)
     end_time = time.time()  # End time of the acquisition
 
     elapsed_time = end_time - start_time  # Total time taken for the acquisition
@@ -257,15 +210,12 @@ def start_acquisition(wait_for_trigger):
         
     print(f"started at ctime: {time.ctime(start_time)} with Average framerate: {framerate} frames per second") # TODO sort out possible 2 second process delay between trigger and acquisition
     
-    # Load the final TIFF stack into the viewer
-    # viewer.add_image(np.array(images), name='Final Acquisition') #2024-08-04 This line adds several minutes after saving
-
 
 # Custom widget class for Napari
 class MyWidget(QWidget):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
+    def __init__(self) -> None:
         super().__init__()
-        self.viewer = viewer
+
         self.layout = QVBoxLayout(self)
         self._trigger_mode = False
         
@@ -310,7 +260,7 @@ class MyWidget(QWidget):
         subject_id = self.subject_id_input.text()
         session_id = self.session_id_input.text()
         num_frames = int(self.num_frames_input.text())
-        start_acquisition(self._trigger_mode)
+        start_acquisition(self.viewer, self._trigger_mode)
         
 
     def test_trigger(self):
@@ -328,22 +278,22 @@ def update_fps(fps):
     viewer = napari.current_viewer()
     viewer.text_overlay.text = f'{fps:1.1f} FPS'
     
-# Function to start Napari with the custom widget
-def start_napari():
-    
-    print("launching interface...")
-    viewer = Viewer()
-    viewer.text_overlay.visible = True
-    viewer.window._qt_viewer.canvas.measure_fps(callback=update_fps)
-    mmc.mda.engine.use_hardware_sequencing = True
 
-    # Activate live view
-    viewer.window.add_plugin_dock_widget('napari-micromanager')
-    viewer.window.add_dock_widget(MyWidget(viewer), area='bottom')
-    run()
-    viewer.update_console(locals()) # https://github.com/napari/napari/blob/main/examples/update_console.py
+
 
 # Launch Napari with the custom widget
 if __name__ == "__main__":
     print("Starting Sipefield Napari Acquisition Interface...")
-    start_napari()
+
+    viewer = Viewer()
+    viewer.text_overlay.visible = True
+    viewer.window._qt_viewer.canvas.measure_fps(callback=update_fps)
+
+
+    widget = MyWidget()
+    # Activate live view
+    viewer.window.add_plugin_dock_widget('napari-micromanager')
+    viewer.window.add_dock_widget(widget, area='bottom')
+
+    viewer.update_console(locals()) # https://github.com/napari/napari/blob/main/examples/update_console.py
+    napari.run() # Start the Napari viewer
