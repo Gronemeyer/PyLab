@@ -22,12 +22,18 @@ import collections
 import threading
 from tqdm import tqdm
 
+
+from magicgui import magic_factory, magicgui, widgets
+from magicgui.tqdm import trange
+
 from typing import TYPE_CHECKING
 from itertools import cycle
 
 if TYPE_CHECKING:
     import napari
 
+from typing import Any, Dict
+import json
 
 pymmcore_plus.configure_logging(file_level="DEBUG", stderr_level="DEBUG")
 
@@ -38,6 +44,7 @@ MM_CONFIG = r'C:/dev/devDhyanaCam.cfg'
 NIDAQ_DEVICE = 'Dev2'
 CHANNELS = ['port2/line0']
 IO = 'input' # is the NIDAQ an INput or Output Device?
+
 
 ###THREADING
 frame_queue = collections.deque()
@@ -61,8 +68,6 @@ protocol_id = "devTIFF"
 subject_id = "001"
 session_id = "01"
 num_frames = 1000
-pattern = ['6', '4', '16', '16']
-
 
 class NIDAQ:
     '''
@@ -115,7 +120,7 @@ class NIDAQ:
         self.trigger(False)
 
 class FrameSaver(threading.Thread):
-    def __init__(self, frame_deque, stop_event, num_frames):
+    def __init__(self, frame_deque, stop_event, num_frames, file_dir):
         super().__init__()
         self.frame_deque = frame_deque
         self.stop_event = stop_event
@@ -168,20 +173,26 @@ class FrameSaver(threading.Thread):
 #         finally:
 #             self.frame_deque = collections.deque()
 
-def save_to_bids(path=SAVE_DIR):
+
+def save_to_bids(save_dir: str, protocol_id: str, subject_id: str, session_id: str) -> str:
     """
-    Make a BIDS formatted directory 
+    Create a directory path based on BIDS (Brain Imaging Data Structure) standards and return the path for a new TIFF file.
     
-    Accesses global variables for protocol_id, subject_id, session_id
-    
-    Organizes the directory structure as follows:
-    path/protocol_id-subject_id/ses-session_id/anat
+    Parameters:
+    - save_dir (str): Base directory for saving the BIDS formatted data.
+    - protocol_id (str): Identifier for the protocol.
+    - subject_id (str): Identifier for the subject.
+    - session_id (str): Identifier for the session.
+
+    Returns:
+    - str: The file path where the new TIFF file should be saved.
     """
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S') # get current timestamp
-    anat_dir = os.path.join(path, f"{protocol_id}-{subject_id}", f"ses-{session_id}", "anat")
-    os.makedirs(anat_dir, exist_ok=True) # create the directory if it doesn't exist
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')  # Get current timestamp
+    anat_dir = os.path.join(save_dir, f"{protocol_id}-{subject_id}", f"ses-{session_id}", "anat")
+    os.makedirs(anat_dir, exist_ok=True)  # Create the directory if it doesn't exist
     filename = os.path.join(anat_dir, f"sub-{subject_id}_ses-{session_id}_{timestamp}.tiff")
-    return filename # returns the filename
+    print(f"File will be saved to: {filename}")
+    return filename
 
 class Arduino():
     def __init__(self, mmc):
@@ -213,154 +224,114 @@ class Arduino():
     
     def stop_sequence(self):
         mmc.getPropertyObject(self._device, 'State').stopSequence()
+        print("Sequence Stopped from LED Arudino Class")
         
     def _load_device(self, device):
+        #mmc.setSerialPortCommand('COM12', '28', 'f')
         mmc.deviceBusy('Arduino-Switch')
 
+
+
+class Parameters:
+    def __init__(self, file_path=None):
+        self.file_path = file_path
+        self.params = {}
+        if file_path:
+            self.load_parameters()
+        
+    def load_parameters(self):
+        import json
+        
+        if self.file_path:
+            with open(self.file_path, 'r') as file:
+                self.params = json.load(file)
+                    
+    def save_parameters(self):
+        with open(self.file_path, 'w') as file:
+            json.dump(self.params, file)
+            
+    def set_global_parameters(self):
+        for key, value in self.params.items():
+            globals()[key] = value
+    
+    def __getitem__(self, key):
+        return self.params[key]       
+
+params = Parameters()
+
+# Create a magicgui function to load the JSON file
+@magicgui(call_button="Load JSON")
+def load_json(file_path: str):
+    params.file_path = file_path
+    params.load_parameters()
+    # Clear existing fields
+    for widget in parameter_gui:
+        parameter_gui.remove(widget)
+    # Dynamically add fields to the GUI based on the loaded parameters
+    for key, value in params.params.items():
+        parameter_gui.append(key, value)
+
+# Create a magicgui function for the parameters
+@magicgui(call_button="Save Parameters")
+def parameter_gui(**kwargs):
+    for key, value in params.params.items():
+        kwargs[key] = value
+    return kwargs
+
 # Function to start the MDA sequence
-@Arduino(mmc)
-def start_acquisition(arduino, mmc, wait_for_trigger, pattern=pattern):
+@magicgui(
+    call_button="Start Acquisition",
+    layout="vertical",
+    num_frames={"widget_type": "SpinBox", "min": 0, "max": 100000, "step": 1},
+    wait_for_trigger={"widget_type": "CheckBox"}
+)
+def acquisition_widget(
+    wait_for_trigger: bool, 
+    save_dir: str = save_dir, 
+    num_frames: int = num_frames, 
+    protocol_id: str = protocol_id, 
+    subject_id: str = subject_id, 
+    session_id: str = session_id):
+    @Arduino(mmc)
+    def start_acquisition(arduino):
+        print("Acquisition started...")
+        # Setup frame queue and threading
+        filename = save_to_bids(save_dir, protocol_id, subject_id, session_id)
+        frame_queue = collections.deque()
+        stop_event = threading.Event()
+        saving_thread = FrameSaver(frame_queue, stop_event, num_frames, file_dir=filename)
+        saving_thread.start()
 
-    ###THREADING
-    saving_thread = FrameSaver(frame_queue, stop_event, num_frames)
-    ############
-
-    if wait_for_trigger:
-        with NIDAQ() as nidaq:
-            if nidaq._io == "output": 
-                # reset NIDAQ output trigger state
-                with NIDAQ() as nidaq:
-                    nidaq.trigger(False)
-            else:
-                print("Waiting for trigger...")
-
-                while True:
-                    try:
-                        if nidaq.task.read(): 
-                            break
-                        elif not nidaq.task.read(): # While input signal is not True
-                            time.sleep(0.1)
-                    except Exception as e:
-                        print(f"Error while waiting for trigger. Ensure NIDAQ tasks have been properly reset: {e}")
-    
-    print(time.ctime(time.time()), ' trigger received, starting acquisition')
-    arduino.start_sequence()
-    saving_thread.start() # Start the thread to save the frames to disk
-    mmc.startContinuousSequenceAcquisition(0) # Start the camera stream to internal image buffer of MMC
-    time.sleep(1)  # Allow some time for the camera to start capturing images to fill the buffer
-
-    start_time = time.time()  # Python arbitrary start time of the acquisition
-    for i in range(num_frames):
-        
-        while mmc.getRemainingImageCount() == 0:
-            time.sleep(0.1) 
-            
-        if mmc.getRemainingImageCount() > 0 or mmc.isSequenceRunning():
-            frame_queue.append(mmc.popNextImageAndMD(slice=i))
-
-    mmc.stopSequenceAcquisition()
-    arduino.stop_sequence()
-
-    end_time = time.time()  # End time of the acquisition
-
-    elapsed_time = end_time - start_time  # Total python arbitrary time taken for the acquisition
-    framerate = num_frames / elapsed_time  # Calculate the average arbitrary framerate
-
-    ###THREADING
-    stop_event.set()
-    saving_thread.join()
-    ############
-
-    if wait_for_trigger:
-        if nidaq._io == "output": 
-        # reset NIDAQ output trigger state
+        # Acquisition logic goes here
+        if wait_for_trigger:
             with NIDAQ() as nidaq:
-                nidaq.trigger(False)
-        
-    print(f"started at ctime: {time.ctime(start_time)} with Average framerate: {framerate} frames per second") # TODO sort out possible 2 second process delay between trigger and acquisition
-    return
+                # Wait for an external trigger
+                nidaq.wait_for_trigger()  # Assuming you define this method
 
-# Custom widget class for Napari
-class MyWidget(QWidget):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
-        super().__init__()
-        self.viewer = viewer
-        self.layout = QVBoxLayout(self)
-        self._trigger_mode = False
-        
-        # ==== Form layout for parameters ==== #
-        self.form_layout = QFormLayout()
-        
-        # ==== Input fields for parameters ==== #
-        self.save_dir_input = QLineEdit(save_dir)
-        self.protocol_id_input = QLineEdit(protocol_id)
-        self.subject_id_input = QLineEdit(subject_id)
-        self.session_id_input = QLineEdit(session_id)
-        self.num_frames_input = QLineEdit(str(num_frames))
-        
-        # === Labels for input fields === #
-        self.form_layout.addRow('Save Directory:', self.save_dir_input)
-        self.form_layout.addRow('Protocol ID:', self.protocol_id_input)
-        self.form_layout.addRow('Subject ID:', self.subject_id_input)
-        self.form_layout.addRow('Session ID:', self.session_id_input)
-        self.form_layout.addRow('Number of Frames:', self.num_frames_input)
-        self.layout.addLayout(self.form_layout) # Add the form layout to the main layout
-        
-        # === Checkbox for trigger mode === #
-        self.checkbox = QCheckBox("Wait for Trigger")
-        self.checkbox.setCheckState(False)
-        self.checkbox.stateChanged.connect(self.set_trigger_mode)
-        self.layout.addWidget(self.checkbox)
-        
-        # === Start Acquisition button === #
-        self.button = QPushButton("Start Acquisition")
-        self.button.clicked.connect(self.start_acquisition_with_params)
-        self.layout.addWidget(self.button)
+        arduino.start_sequence()
+        mmc.startContinuousSequenceAcquisition(0)
+        for i in trange(num_frames):
+            while mmc.getRemainingImageCount() == 0:
+                time.sleep(0.1) 
+            if mmc.getRemainingImageCount() > 0 or mmc.isSequenceRunning():
+                frame_queue.append(mmc.popNextImageAndMD())
 
-        # === Test Trigger button === #
-        self.button = QPushButton("Test NiDAQ Trigger")
-        self.button.clicked.connect(self.test_trigger)
-        self.layout.addWidget(self.button) 
-        
-    def start_acquisition_with_params(self):
-        global save_dir, protocol_id, subject_id, session_id, num_frames
-        save_dir = self.save_dir_input.text()
-        protocol_id = self.protocol_id_input.text()
-        subject_id = self.subject_id_input.text()
-        session_id = self.session_id_input.text()
-        num_frames = int(self.num_frames_input.text())
-        start_acquisition(mmc, self._trigger_mode)
-        
+        mmc.stopSequenceAcquisition()
+        arduino.stop_sequence()
+        stop_event.set()
+        saving_thread.join()
+        print("Acquisition completed.")
 
-    def test_trigger(self):
-        with NIDAQ() as nidaq:
-            nidaq.pulse()
-            
-    def set_trigger_mode(self, checked): # TODO have this change the acquisition trigger method
-        if checked:
-            self._trigger_mode = True
-        else:
-            self._trigger_mode = False
+    return start_acquisition()
 
-def update_fps(fps):
-    """Update fps."""
-    viewer = napari.current_viewer()
-    viewer.text_overlay.text = f'{fps:1.1f} FPS' 
-# Function to start Napari with the custom widget
-def start_napari():
+def main():
     
-    print("launching interface...")
-    viewer = Viewer()
-    viewer.text_overlay.visible = True
-    viewer.window._qt_viewer.canvas.measure_fps(callback=update_fps)
-    mmc.mda.engine.use_hardware_sequencing = True
+    viewer = napari.Viewer()
 
-    viewer.window.add_plugin_dock_widget('napari-micromanager')
-    viewer.window.add_dock_widget(MyWidget(viewer), area='bottom')
+    viewer.window.add_dock_widget([acquisition_widget], area='right')
     napari.run()
-    viewer.update_console(locals()) # https://github.com/napari/napari/blob/main/examples/update_console.py
+    load_json.show()
 
-# Launch Napari with the custom widget
+
 if __name__ == "__main__":
-    print("Starting Sipefield Napari Acquisition Interface...")
-    start_napari()
+    main()

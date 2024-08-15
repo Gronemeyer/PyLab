@@ -1,0 +1,8 @@
+{
+    "save_dir": "/path/to/save/directory",
+    "num_frames": 5000,
+    "wait_for_trigger": true,
+    "protocol_id": "EXP123",
+    "subject_id": "Mouse01",
+    "session_id": "Sess01"
+}
