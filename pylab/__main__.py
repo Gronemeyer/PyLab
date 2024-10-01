@@ -16,8 +16,6 @@ def cli():
     """PyLabs Command Line Interface"""
     pass
 
-
-
 @cli.command()
 def record():
     """

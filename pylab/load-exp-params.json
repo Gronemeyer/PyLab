@@ -1,8 +1,9 @@
 {
-    "save_dir": "/path/to/save/directory",
-    "num_frames": 5000,
-    "wait_for_trigger": true,
+    "save_dir": "C:/dev/Output",
+    "num_frames": "5000",
+    "start_on_trigger": "True",
     "protocol_id": "EXP123",
     "subject_id": "Mouse01",
-    "session_id": "Sess01"
+    "session_id": "Sess01",
+    "scientist": "John Doe"
 }
