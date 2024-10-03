@@ -33,21 +33,6 @@
     └── test_base.py         # The base test case for the project
 ```
 
-## FAQ
-
-Frequent asked questions.
-
-### Why this template is not using [Poetry](https://python-poetry.org/) ?
-
-I really like Poetry and I think it is a great tool to manage your python projects,
-if you want to switch to poetry, you can run `make switch-to-poetry`.
-
-But for this template I wanted to keep it simple.
-
-Setuptools is the most simple and well supported way of packaging a Python project,
-it doesn't require extra dependencies and is the easiest way to install the project.
-
-Also, poetry doesn't have a good support for installing projects in development mode yet.
 
 ### Why the `requirements.txt` is empty ?
 
@@ -140,24 +125,6 @@ Once the project is bigger and complex, having pre-commit as a dependency can be
 I wanted to provide a simple template for a CLI application on the project main entry point
 click and typer are great alternatives but are external dependencies and this template
 doesn't add dependencies besides those used for development.
-
-### Why this doesn't provide a full example of application using Flask or Django?
-
-as I said before, I want it to be simple and multipurpose, so I decided to not include
-external dependencies and programming design decisions.
-
-It is up to you to decide if you want to use Flask or Django and to create your application
-the way you think is best.
-
-This template provides utilities in the Makefile to make it easier to you can run:
-
-```bash
-$ make init 
-Which template do you want to apply? [flask, fastapi, click, typer]? > flask
-Generating a new project with Flask ...
-```
-
-Then the above will download the Flask template and apply it to the project.
 
 ## The Makefile
 

@@ -3,6 +3,9 @@
 #from pylab.cli import main  # pragma: no cover
 import click
 from pycromanager import Core
+from pylab.utils import utils
+import pylab.gui as gui
+
 
 
 '''
@@ -17,27 +20,13 @@ def cli():
     pass
 
 @cli.command()
-def record():
+def launch():
     """
-    Record a widefield acquisition.S
+    Launch napari with mesofield acquisition interface widgets
     """
-    from pycromanager import Acquisition, multi_d_acquisition_events
-    from pylab import base
+    print("Starting Sipefield Napari Acquisition Interface...")
+    gui.start_dhyana(load_params=False, pupil=False)
 
-    print("Initializing Micro Manager Device configuration from config file..." + base.MM_CONFIG)
-    # Initialize the core object for Micromanager API
-
-    core = Core()
-    core.close()
-    core = Core()
-    # Load the system configuration file
-    core.load_system_configuration(base.MM_CONFIG)
-    
-    with Acquisition(directory=base.SAVE_DIR) as acq:
-        events = multi_d_acquisition_events(num_time_points=10)
-        acq.acquire(events)
-
-    core.close()
 
 
 @cli.command()
@@ -67,7 +56,7 @@ def record2():
 @cli.command()
 def get_devices():
     """Download USB IDs and list all serial ports."""
-    from .utils import download_usb_ids, parse_usb_ids, list_serial_ports
+    from .utils.utils import download_usb_ids, parse_usb_ids, list_serial_ports
 
     usb_ids_content = download_usb_ids()
     if usb_ids_content:
@@ -77,7 +66,7 @@ def get_devices():
         click.echo("Failed to download USB IDs.")
 
 ### NI-DAQ commands ###
-from .utils import list_nidaq_devices, test_nidaq_connection, read_analog_input
+from .utils.utils import list_nidaq_devices, test_nidaq_connection, read_analog_input
 
 @click.command()
 def list_devices():
@@ -100,5 +89,7 @@ cli.add_command(test_connection)
 
 if __name__ == "__main__":  # pragma: no cover
     cli()
+
+
 
 

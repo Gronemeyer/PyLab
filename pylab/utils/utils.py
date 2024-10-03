@@ -1,10 +1,45 @@
 import serial.tools.list_ports #pip install pyserial
 import requests
 import nidaqmx
-from nidaqmx.constants import AcquisitionType
+import pymmcore_plus
+from useq import MDASequence
+
+
+
+#TODO test rotary encoder connection
+def test_arduino_connection():
+    try:
+        arduino = serial.Serial('COM4', 9600)
+        arduino.close()
+        print("Arduino connection successful!")
+    except serial.SerialException:
+        print("Failed to connect to Arduino on COM4.")
+        
+#TODO auto-refresh the JSON file path in the GUI each time a new JSON file is added
+#TODO Save config for each session
+#TODO Add a button to save the current configuration to a JSON file
+#TODO Auto-fps calculation based on the number of frames and duration
+def get_fps(mmc: pymmcore_plus.CMMCorePlus):
+    """
+    Calculate the frames per second (FPS) based on the number of frames and duration of an MDA sequence.
+        - num_frames = num_trials × trial_time(5 seconds) × framerate (45 fps)
+        - num_trials = num_frames / (trial_time * framerate) (255 frames for a 5 seconds trial at 45 fps)
+        - Total duration = num_frames / framerate or num_trials * trial_time
+        - num_frames = num_trials × trial_time(5 seconds) × framerate (45 fps)
+
+    """
+    from pymmcore_plus import Metadata
+    core = mmc
+    frames = 120
+    core.mda.run(
+        MDASequence(time_plan={"interval": 0, "loops": frames}),
+    )
+    
+    duration = core.mda._time_elapsed()
+    fps = frames / duration
+    return fps
 
 ### Utility functions for querying serial ports and USB IDs ###
-
 
 def list_serial_ports():
     """
