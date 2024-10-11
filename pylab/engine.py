@@ -7,11 +7,17 @@ import keyboard
 import napari.layers
 import napari.layers.image
 import pymmcore_plus
+import useq
 from useq import MDASequence
 from magicgui.widgets import Container, CheckBox, create_widget
 import pathlib
+import numpy as np
 
-from .config import ExperimentConfig
+from pylab.utils import utils
+from pylab.config import ExperimentConfig
+
+import subprocess #for PsychoPy Subprocess
+
 
 class AcquisitionEngine(Container):
     """ AcquisitionEngine object for the napari-mesofield plugin
@@ -30,6 +36,8 @@ class AcquisitionEngine(Container):
         self._mmc = mmc
         self._mmc2 = mmc2
         self.config = ExperimentConfig()
+        self.dhyana_metadata = []
+        self.thor_metadata = []
         
         #====================================GUI Widgets=====================================#
         
@@ -73,6 +81,12 @@ class AcquisitionEngine(Container):
         self._gui_record_button.changed.connect(self.rec)
         # Launch the PsychoPy experiment upon button press
         self._gui_psychopy_button.changed.connect(self.launch_psychopy)
+        
+        self._mmc.mda.events.frameReady.connect(self._dhyana_on_frame_ready)
+        self._mmc2.mda.events.frameReady.connect(self._thor_on_frame_ready) #241004 Added second connection, untested; can a method be called internally by two threaded operations?
+        self._mmc.mda.events.sequenceFinished.connect(self._save_mmc_metadata)
+        self._mmc2.mda.events.sequenceFinished.connect(self._save_mmc_metadata)
+
         #-------------------------------------------------------------------------------------#
         
         # Add the widgets to the container
@@ -89,6 +103,7 @@ class AcquisitionEngine(Container):
     def _get_json_file_choices(self, path):
         """Return a list of JSON files in the current directory."""
         import glob
+        self.config.save_dir = path
         try:
             json_files = glob.glob(os.path.join(path, "*.json"))
             self._gui_json_dropdown.choices = json_files
@@ -107,7 +122,6 @@ class AcquisitionEngine(Container):
             except Exception as e:
                 print(f"Trouble updating ExperimentConfig from AcquisitionEngine:\n{json_path_input}\nConfiguration not updated.")
                 print(e)
-
                 
     def _on_table_edit(self, event=None):
         """Update the configuration parameters when the table is edited."""
@@ -129,19 +143,41 @@ class AcquisitionEngine(Container):
     def _refresh_config_table(self):
         """Refresh the configuration table to reflect current parameters."""
         self._gui_config_table.value = self.config.dataframe
+        
+    def _dhyana_on_frame_ready(self, data: np.ndarray, event: useq.MDAEvent, metadata: dict):
+        """Callback function to save MicroManager core metadata when an image is captured during the MDA."""
+        # Update the viewer with the new image
+        self.dhyana_metadata.append(metadata)
+        
+    def _thor_on_frame_ready(self, data: np.ndarray, event: useq.MDAEvent, metadata: dict):
+        """Callback function to save MicroManager core metadata when an image is captured during the MDA."""
+        # Update the viewer with the new image
+        self.thor_metadata.append(metadata)
+        
+    def _save_mmc_metadata(self):
+        """Save the metadata from the MDA to a CSV file in the same folder as the acquired .tiff files."""
+        if self.dhyana_metadata:
+            metadata_df = pd.DataFrame(self.dhyana_metadata)
+            metadata_df.to_json(os.path.join(self.config.bids_dir, 'dhyana_metadata.json'))
+        if self.thor_metadata:
+            metadata_df = pd.DataFrame(self.thor_metadata)
+            metadata_df.to_json(os.path.join(self.config.bids_dir, 'thor_metadata.json'))
+
+
+        
+        
     #-----------------------------------------------------------------------------------------------#
 
     #==============================Public Class Methods=============================================#
     
     def rec(self):
         """Run the MDA sequence with the configuration parameters.
-        
-        Required ExperimentConfig Object parameters:
-        - self.config.start_on_trigger -> bool
-        - self.config.num_frames -> int
-        - self.config.file_path -> PATH/str
-        - self.config.pupil_file_path -> PATH/str
         """
+        dhyana_fps = 50 #20ms exposure
+        thorcam_fps = 30 # 20ms exposure
+        duration = self.config.num_frames / dhyana_fps # 50 fps
+        pupil_frames = thorcam_fps * duration # 30 fps
+        
         # Wait for spacebar press if start_on_trigger is True
         wait_for_trigger = self.config.start_on_trigger
         if wait_for_trigger:
@@ -156,18 +192,24 @@ class AcquisitionEngine(Container):
             MDASequence(time_plan={"interval": 0, "loops": self.config.num_frames}),
             output=self.config.data_path
         )
-        if self._mmc is not None:
+        
+        if self._mmc2 is not None:
             self._mmc2.run_mda(
-                MDASequence(time_plan={"interval": 0, "loops": self.config.num_frames}),
+                MDASequence(time_plan={"interval": 0, "loops": pupil_frames}),
                 output=self.config.pupil_file_path
             )
     
+        return
+        
     def launch_psychopy(self):
         """ 
         Launches a PsychoPy experiment as a subprocess with the current ExperimentConfig parameters 
         """
-        import subprocess
-        
+        dhyana_fps = 50 #20ms exposure
+        duration = self.config.num_frames / dhyana_fps # 50 fps
+
+        assert duration is not None, "Duration must be specified for PsychoPy experiment"
+        self.config.num_trials = int(duration / 5) # 5 seconds per trial 
         # Build the command arguments
         args = [
             "C:\\Program Files\\PsychoPy\\python.exe",
