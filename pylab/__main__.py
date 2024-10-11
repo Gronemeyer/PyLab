@@ -4,8 +4,7 @@
 import click
 from pycromanager import Core
 from pylab.utils import utils
-import pylab.gui as gui
-
+from pylab import gui
 
 
 '''
@@ -20,37 +19,13 @@ def cli():
     pass
 
 @cli.command()
-def launch():
+@click.option('--pupil', default='False', help='Load SNAP with pupil camera.')
+def launch(pupil):
     """
     Launch napari with mesofield acquisition interface widgets
     """
-    print("Starting Sipefield Napari Acquisition Interface...")
-    gui.start_dhyana(load_params=False, pupil=False)
-
-
-
-@cli.command()
-def record2():
-    """
-    Record a widefield acquisition.
-    """
-    from pycromanager import Acquisition, multi_d_acquisition_events, Core
-    from pylab import base
-
-    print("Initializing Micro Manager Device configuration from config file..." + base.MM_CONFIG)
-    core = None
-    try:
-        core = Core()
-        core.load_system_configuration(base.MM_CONFIG)
-        
-        with Acquisition(directory=base.SAVE_DIR) as acq:
-            events = multi_d_acquisition_events(num_time_points=10)
-            acq.acquire(events)
-    finally:
-        if core is not None:
-            core.close()
-
-
+    print("Starting Sipefield Napari Acquisition Platform...")
+    gui.launch_mesofield(load_params=True, pupil=True)
 ### Utility commands for querying serial ports and USB IDs ###
 
 @cli.command()
