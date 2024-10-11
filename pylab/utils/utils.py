@@ -3,6 +3,7 @@ import requests
 import nidaqmx
 import pymmcore_plus
 from useq import MDASequence
+import pandas as pd
 
 
 
@@ -15,11 +16,11 @@ def test_arduino_connection():
     except serial.SerialException:
         print("Failed to connect to Arduino on COM4.")
         
-#TODO auto-refresh the JSON file path in the GUI each time a new JSON file is added
 #TODO Save config for each session
 #TODO Add a button to save the current configuration to a JSON file
 #TODO Auto-fps calculation based on the number of frames and duration
 def get_fps(mmc: pymmcore_plus.CMMCorePlus):
+    ## There is a problem when this function is called more than once in succession, freezing the program
     """
     Calculate the frames per second (FPS) based on the number of frames and duration of an MDA sequence.
         - num_frames = num_trials × trial_time(5 seconds) × framerate (45 fps)
@@ -31,8 +32,9 @@ def get_fps(mmc: pymmcore_plus.CMMCorePlus):
     from pymmcore_plus import Metadata
     core = mmc
     frames = 120
-    core.mda.run(
-        MDASequence(time_plan={"interval": 0, "loops": frames}),
+    core.run_mda(
+        MDASequence(time_plan={"interval": 0, "loops": frames}), 
+        block=True
     )
     
     duration = core.mda._time_elapsed()
@@ -40,6 +42,15 @@ def get_fps(mmc: pymmcore_plus.CMMCorePlus):
     return fps
 
 ### Utility functions for querying serial ports and USB IDs ###
+
+def load_metadata_from_json(json_file_path) -> pd.DataFrame:
+    """load metadata from a JSON file as a Pandas Dataframe."""
+    try:
+        metadata_df = pd.read_json(json_file_path)
+        return metadata_df
+    except Exception as e:
+        print(f"Error loading metadata from JSON file: {e}")
+        return pd.DataFrame()
 
 def list_serial_ports():
     """
