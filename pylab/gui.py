@@ -31,49 +31,39 @@ def stop_led(mmc):
     
     mmc.getPropertyObject('Arduino-Switch', 'State').stopSequence()
 
-def start_thorcam():
-    print("Starting ThorCam interface...")
-    mmc_thor = pymmcore_plus.CMMCorePlus()
-    mmc_thor.loadSystemConfiguration(THOR_CONFIG)
-    mmc_thor.setROI("ThorCam", 440, 305, 509, 509)
-    mmc_thor.setExposure(20)
-    mmc_thor.mda.engine.use_hardware_sequencing = True
-    pupil_viewer = napari.view_image(mmc_thor.snap(), name='pupil_viewer')
-    pupilcam = AcquisitionEngine(pupil_viewer, mmc_thor)
-    pupil_viewer.window.add_dock_widget([pupilcam], area='right')
-    #viewer.window.add_dock_widget([record_from_buffer, start_sequence])
-    #pupil_cam = AcquisitionEngine(viewer, pupil_mmc, PUPIL_JSON)
-    #pupil_viewer.window.add_plugin_dock_widget('napari-micromanager')
-    #pupil_viewer.window.add_dock_widget([pupil_cam], area='right')
-    
-    print("ThorCam interface launched.")
-    pupil_viewer.update_console(locals()) # https://github.com/napari/napari/blob/main/examples/update_console.py
+def load_thorcam_mmc_params(mmcore2):
+    print("Loading ThorCam MicroManager configuration...")
+    mmcore2.loadSystemConfiguration(THOR_CONFIG)
+    mmcore2.setROI("ThorCam", 440, 305, 509, 509)
+    mmcore2.setExposure(20)
+    mmcore2.mda.engine.use_hardware_sequencing = True
+    print("ThorCam MicroManager configuration loaded.")
 
-def load_dhyana_mmc_params(mmc):
-    mmc.loadSystemConfiguration(DHYANA_CONFIG)
-    mmc.setProperty('Arduino-Switch', 'Sequence', 'On')
-    mmc.setProperty('Arduino-Shutter', 'OnOff', '1')
-    mmc.setProperty('Dhyana', 'Output Trigger Port', '2')
-    mmc.setProperty('Core', 'Shutter', 'Arduino-Shutter')
-    mmc.setProperty('Dhyana', 'Gain', 'HDR')
-    mmc.setChannelGroup('Channel')
+def load_dhyana_mmc_params(mmcore1):
+    print("Loading Dhyana MicroManager configuration...")
+    mmcore1.loadSystemConfiguration(DHYANA_CONFIG)
+    mmcore1.setProperty('Arduino-Switch', 'Sequence', 'On')
+    mmcore1.setProperty('Arduino-Shutter', 'OnOff', '1')
+    mmcore1.setProperty('Dhyana', 'Output Trigger Port', '2')
+    mmcore1.setProperty('Core', 'Shutter', 'Arduino-Shutter')
+    mmcore1.setProperty('Dhyana', 'Gain', 'HDR')
+    mmcore1.setChannelGroup('Channel')
+    print("Dhyana MicroManager configuration loaded.")
 
-def start_dhyana(load_params=True, pupil=False):
+def launch_mesofield(load_params=True, pupil=False):
 
     print("launching Dhyana interface...")
 
     viewer = napari.Viewer()
     viewer.window.add_plugin_dock_widget('napari-micromanager')
     mmc = pymmcore_plus.CMMCorePlus.instance()
-    print("Starting ThorCam interface...")
 
     if pupil:
         mmc_thor = pymmcore_plus.CMMCorePlus()
-        mmc_thor.loadSystemConfiguration(THOR_CONFIG)
-        mmc_thor.setROI("ThorCam", 440, 305, 509, 509)
-        mmc_thor.setExposure(20)
-        mmc_thor.mda.engine.use_hardware_sequencing = True
+        load_thorcam_mmc_params(mmc_thor)
+        print("Launching Mesofield Interface with ThorCam...")
         mesofield = AcquisitionEngine(viewer, mmc, mmc_thor)
+        viewer.add_image(mmc_thor.snap(), name='pupil_cam')
     else:
         mesofield = AcquisitionEngine(viewer, mmc)
 
@@ -83,17 +73,9 @@ def start_dhyana(load_params=True, pupil=False):
     
     if load_params:
         load_dhyana_mmc_params(mmc)
-        print("Dhyana parameters loaded.")
         
-    print("Dhyana interface launched.")
     viewer.update_console(locals()) # https://github.com/napari/napari/blob/main/examples/update_console.py
-    
-    if pupil:
-        start_thorcam()
-  
+
     napari.run()
-# Launch Napari with the custom widget
-# if __name__ == "__main__":
-#     print("Starting Sipefield Napari Acquisition Interface...")
-#     start_dhyana(load_params=False, pupil=False)
+
     
