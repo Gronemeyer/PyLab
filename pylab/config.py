@@ -24,14 +24,18 @@ class ExperimentConfig:
         self._parameters = {}
         self._json_file_path = ''
         self._output_path = ''
+        self._save_dir = ''
 
     @property
     def save_dir(self) -> pathlib.Path:
-        return self._parameters.get('save_dir', os.getcwd())
+        return self._save_dir
 
     @save_dir.setter
-    def save_dir(self, value: str):
-        self.save_dir = value
+    def save_dir(self, path: str):
+        if isinstance(path, pathlib.Path):
+            self._save_dir = path
+        else:
+            print(f"ExperimentConfig: \n Invalid save directory path: {path}")
 
     @property
     def protocol(self) -> str:
@@ -59,8 +63,11 @@ class ExperimentConfig:
     
     @property
     def num_trials(self) -> int:
-        num_trials = int(self.num_frames / (5 * 45))
-        return num_trials
+        return self._parameters.get('num_trials', 0)
+    
+    @num_trials.setter
+    def num_trials(self, value):
+        self._parameters['num_trials'] = value
     
     @property
     def parameters(self) -> dict:
