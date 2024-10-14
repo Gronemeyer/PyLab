@@ -83,7 +83,7 @@ class AcquisitionEngine(Container):
         self._gui_psychopy_button.changed.connect(self.launch_psychopy)
         
         self._mmc.mda.events.frameReady.connect(self._dhyana_on_frame_ready)
-        self._mmc2.mda.events.frameReady.connect(self._thor_on_frame_ready) #241004 Added second connection, untested; can a method be called internally by two threaded operations?
+        self._mmc2.mda.events.frameReady.connect(self._thor_on_frame_ready) #241004 Added second connection, untested; can a method be called internally by two threaded operations? 241013 - works fine
         self._mmc.mda.events.sequenceFinished.connect(self._save_mmc_metadata)
         self._mmc2.mda.events.sequenceFinished.connect(self._save_mmc_metadata)
 
@@ -164,8 +164,6 @@ class AcquisitionEngine(Container):
             metadata_df.to_json(os.path.join(self.config.bids_dir, 'thor_metadata.json'))
 
 
-        
-        
     #-----------------------------------------------------------------------------------------------#
 
     #==============================Public Class Methods=============================================#
@@ -174,10 +172,10 @@ class AcquisitionEngine(Container):
         """Run the MDA sequence with the configuration parameters.
         """
         dhyana_fps = 50 #20ms exposure
-        thorcam_fps = 30 # 20ms exposure
+        thorcam_fps = 34 # 20ms exposure
         duration = self.config.num_frames / dhyana_fps # 50 fps
-        pupil_frames = thorcam_fps * duration # 30 fps
-        
+        pupil_frames = (thorcam_fps * duration) + 1000 # 34 fps
+         
         # Wait for spacebar press if start_on_trigger is True
         wait_for_trigger = self.config.start_on_trigger
         if wait_for_trigger:
@@ -199,7 +197,7 @@ class AcquisitionEngine(Container):
                 output=self.config.pupil_file_path
             )
     
-        return
+        #return 241013 - devJG trying to figure out why the _mmc2 Thor acquistion hangs after the dhyana acquisition stops
         
     def launch_psychopy(self):
         """ 
@@ -222,4 +220,15 @@ class AcquisitionEngine(Container):
         ]
         
         subprocess.Popen(args, start_new_session=True)
+        
+    def pupil_view(self):
+        from matplotlib import pyplot as plt
+        plt.imshow(self._mmc2.snap(), interpolation='nearest')
+        plt.show()
+        return
+    
+    def save_config(self):
+        """ Save the current configuration to a JSON file """
+        self.config.to_json(os.path.join(self.config.bids_dir, 'configuration.json'))
+
     #-----------------------------------------------------------------------------------------------#

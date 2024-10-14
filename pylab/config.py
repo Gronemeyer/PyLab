@@ -2,6 +2,7 @@ import os
 import json
 import pathlib
 import pandas as pd
+import os
 
 
 class ExperimentConfig:
@@ -33,7 +34,7 @@ class ExperimentConfig:
     @save_dir.setter
     def save_dir(self, path: str):
         if isinstance(path, pathlib.Path):
-            self._save_dir = path
+            self._save_dir = os.path.join(path, 'data')
         else:
             print(f"ExperimentConfig: \n Invalid save directory path: {path}")
 
@@ -97,7 +98,7 @@ class ExperimentConfig:
     # Property for pupil file path, if needed
     @property
     def pupil_file_path(self):
-        file = 'pupil.tiff'
+        file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}_pupil.tiff"
         return self._generate_unique_file_path(file)
 
     @property
