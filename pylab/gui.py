@@ -50,17 +50,18 @@ def load_dhyana_mmc_params(mmcore1):
     mmcore1.setChannelGroup('Channel')
     print("Dhyana MicroManager configuration loaded.")
 
-def launch_mesofield(load_params=True, pupil=False):
+def launch_mesofield(load_params=False, pupil=False):
 
     print("launching Dhyana interface...")
 
     viewer = napari.Viewer()
     viewer.window.add_plugin_dock_widget('napari-micromanager')
     mmc = pymmcore_plus.CMMCorePlus.instance()
-
+    pupil = False
     if pupil:
         mmc_thor = pymmcore_plus.CMMCorePlus()
-        load_thorcam_mmc_params(mmc_thor)
+        #load_thorcam_mmc_params(mmc_thor)
+        mmc_thor.loadSystemConfiguration() #test
         print("Launching Mesofield Interface with ThorCam...")
         mesofield = AcquisitionEngine(viewer, mmc, mmc_thor)
         viewer.add_image(mmc_thor.snap(), name='pupil_cam')

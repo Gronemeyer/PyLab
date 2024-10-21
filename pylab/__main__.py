@@ -25,7 +25,7 @@ def launch(pupil):
     Launch napari with mesofield acquisition interface widgets
     """
     print("Starting Sipefield Napari Acquisition Platform...")
-    gui.launch_mesofield(load_params=True, pupil=True)
+    gui.launch_mesofield()
 ### Utility commands for querying serial ports and USB IDs ###
 
 @cli.command()
