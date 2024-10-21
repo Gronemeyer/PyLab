@@ -148,7 +148,7 @@ class AcquisitionEngine(Container):
         """Callback function to save MicroManager core metadata when an image is captured during the MDA."""
         # Update the viewer with the new image
         self.dhyana_metadata.append(metadata)
-        
+    
     def _thor_on_frame_ready(self, data: np.ndarray, event: useq.MDAEvent, metadata: dict):
         """Callback function to save MicroManager core metadata when an image is captured during the MDA."""
         # Update the viewer with the new image
@@ -180,7 +180,7 @@ class AcquisitionEngine(Container):
         wait_for_trigger = self.config.start_on_trigger
         if wait_for_trigger:
             print("Press spacebar to start recording...")
-            self.launch_psychopy()
+            #self.launch_psychopy()
             while not keyboard.is_pressed('space'):
                 pass
             self.config.update_parameter('keyb_trigger_timestamp', datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
@@ -211,7 +211,7 @@ class AcquisitionEngine(Container):
         # Build the command arguments
         args = [
             "C:\\Program Files\\PsychoPy\\python.exe",
-            "D:\\jgronemeyer\\Experiment\\Gratings_vis_0.6.py",
+            "F:\\jgronemeyer\\Gratings_vis_0.6.py",
             f'{self.config.protocol}',
             f'{self.config.subject}',
             f'{self.config.session}',
