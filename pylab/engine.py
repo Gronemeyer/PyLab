@@ -14,9 +14,9 @@ import pathlib
 import numpy as np
 
 from pylab.utils import utils
-from pylab.config import ExperimentConfig
 
 import subprocess #for PsychoPy Subprocess
+
 
 
 class AcquisitionEngine(Container):
@@ -30,14 +30,11 @@ class AcquisitionEngine(Container):
     
     launch_psychopy: launches the PsychoPy experiment as a subprocess with ExperimentConfig parameters
     """
-    def __init__(self, viewer: "napari.viewer.Viewer", mmc: pymmcore_plus.CMMCorePlus, mmc2: pymmcore_plus.CMMCorePlus = None):
+    def __init__(self, viewer: "napari.viewer.Viewer", mmc: pymmcore_plus.CMMCorePlus, cfg):
         super().__init__()
         self._viewer = viewer
         self._mmc = mmc
-        self._mmc2 = mmc2
-        self.config = ExperimentConfig()
-        self.dhyana_metadata = []
-        self.thor_metadata = []
+        self.config = cfg
         
         #====================================GUI Widgets=====================================#
         
@@ -78,15 +75,10 @@ class AcquisitionEngine(Container):
         # Load the JSON configuration file from the dropdown value 
         self._gui_json_dropdown.changed.connect(self._update_config)
         # Run the MDA sequence upon button press
-        self._gui_record_button.changed.connect(self.rec)
+        self._gui_record_button.changed.connect(self.recorder)
         # Launch the PsychoPy experiment upon button press
         self._gui_psychopy_button.changed.connect(self.launch_psychopy)
         
-        self._mmc.mda.events.frameReady.connect(self._dhyana_on_frame_ready)
-        self._mmc2.mda.events.frameReady.connect(self._thor_on_frame_ready) #241004 Added second connection, untested; can a method be called internally by two threaded operations? 241013 - works fine
-        self._mmc.mda.events.sequenceFinished.connect(self._save_mmc_metadata)
-        self._mmc2.mda.events.sequenceFinished.connect(self._save_mmc_metadata)
-
         #-------------------------------------------------------------------------------------#
         
         # Add the widgets to the container
@@ -133,7 +125,7 @@ class AcquisitionEngine(Container):
         try:
             if not df.empty:
                 # Update the parameters in the config
-                for index, row in df.iterrows():
+                for index, row in df.iterrows(): # although index is not used, this ensures that the entire table is iterated as a tuple of (index, row)
                     key = row['Parameter']
                     value = row['Value']
                     self.config.update_parameter(key, value)
@@ -144,33 +136,13 @@ class AcquisitionEngine(Container):
         """Refresh the configuration table to reflect current parameters."""
         self._gui_config_table.value = self.config.dataframe
         
-    def _dhyana_on_frame_ready(self, data: np.ndarray, event: useq.MDAEvent, metadata: dict):
-        """Callback function to save MicroManager core metadata when an image is captured during the MDA."""
-        # Update the viewer with the new image
-        self.dhyana_metadata.append(metadata)
-    
-    def _thor_on_frame_ready(self, data: np.ndarray, event: useq.MDAEvent, metadata: dict):
-        """Callback function to save MicroManager core metadata when an image is captured during the MDA."""
-        # Update the viewer with the new image
-        self.thor_metadata.append(metadata)
-        
-    def _save_mmc_metadata(self):
-        """Save the metadata from the MDA to a CSV file in the same folder as the acquired .tiff files."""
-        if self.dhyana_metadata:
-            metadata_df = pd.DataFrame(self.dhyana_metadata)
-            metadata_df.to_json(os.path.join(self.config.bids_dir, 'dhyana_metadata.json'))
-        if self.thor_metadata:
-            metadata_df = pd.DataFrame(self.thor_metadata)
-            metadata_df.to_json(os.path.join(self.config.bids_dir, 'thor_metadata.json'))
-
-
     #-----------------------------------------------------------------------------------------------#
 
     #==============================Public Class Methods=============================================#
     
-    def rec(self):
-        """Run the MDA sequence with the configuration parameters.
-        """
+    def recorder(self):
+        """Run the MDA sequence with the global Config object parameters loaded from JSON."""
+
         dhyana_fps = 50 #20ms exposure
         thorcam_fps = 34 # 20ms exposure
         duration = self.config.num_frames / dhyana_fps # 50 fps
@@ -181,28 +153,21 @@ class AcquisitionEngine(Container):
         if wait_for_trigger:
             print("Press spacebar to start recording...")
             #self.launch_psychopy()
-            while not keyboard.is_pressed('space'):
-                pass
-            self.config.update_parameter('keyb_trigger_timestamp', datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-            
+            #keyboard.wait('space')
+            #self.config.update_parameter('keyb_trigger_timestamp', datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+        
         # Run the MDA, if second instance of MMC is loaded on the engine (ie. ThorPupil Cam) then start that MDA, too
         self._mmc.run_mda(
             MDASequence(time_plan={"interval": 0, "loops": self.config.num_frames}),
             output=self.config.data_path
         )
-        
-        if self._mmc2 is not None:
-            self._mmc2.run_mda(
-                MDASequence(time_plan={"interval": 0, "loops": pupil_frames}),
-                output=self.config.pupil_file_path
-            )
+
     
         #return 241013 - devJG trying to figure out why the _mmc2 Thor acquistion hangs after the dhyana acquisition stops
         
     def launch_psychopy(self):
-        """ 
-        Launches a PsychoPy experiment as a subprocess with the current ExperimentConfig parameters 
-        """
+        """ Launches a PsychoPy experiment as a subprocess with the current ExperimentConfig parameters """
+
         dhyana_fps = 50 #20ms exposure
         duration = self.config.num_frames / dhyana_fps # 50 fps
 
