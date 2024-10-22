@@ -3,6 +3,7 @@ import json
 import pathlib
 import pandas as pd
 import os
+import useq
 
 
 class ExperimentConfig:
@@ -76,7 +77,7 @@ class ExperimentConfig:
     
     @property
     def filename(self):
-        return f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.ome.tiff"
+        return f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.tiff"
 
     @property
     def bids_dir(self):
@@ -153,3 +154,5 @@ class ExperimentConfig:
             print(f"Parameters saved to {save_path}")
         except Exception as e:
             print(f"Error saving parameters: {e}")
+
+Config = ExperimentConfig()

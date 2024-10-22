@@ -2,10 +2,8 @@
 
 #from pylab.cli import main  # pragma: no cover
 import click
-from pycromanager import Core
 from pylab.utils import utils
-from pylab import gui
-
+from pylab import mdacore
 
 '''
 This is the client terminal command line interface
@@ -19,13 +17,12 @@ def cli():
     pass
 
 @cli.command()
-@click.option('--pupil', default='False', help='Load SNAP with pupil camera.')
-def launch(pupil):
+def launch():
     """
     Launch napari with mesofield acquisition interface widgets
     """
-    print("Starting Sipefield Napari Acquisition Platform...")
-    gui.launch_mesofield()
+    mdacore.load_napari_gui()
+
 ### Utility commands for querying serial ports and USB IDs ###
 
 @cli.command()
