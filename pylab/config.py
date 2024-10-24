@@ -27,6 +27,10 @@ class ExperimentConfig:
         self._json_file_path = ''
         self._output_path = ''
         self._save_dir = ''
+        
+        self.dhyana_fps: int = 50
+        self.thorcam_fps: int = 34
+        self.trial_duration: int = 5
 
     @property
     def save_dir(self) -> pathlib.Path:
@@ -60,12 +64,20 @@ class ExperimentConfig:
         return self._parameters.get('start_on_trigger', False)
 
     @property
-    def num_frames(self) -> int:
+    def num_meso_frames(self) -> int:
         return self._parameters.get('num_frames', 0)
     
     @property
+    def sequence_duration(self) -> int:
+        return self._parameters.get('num_frames', 100) / self.dhyana_fps # 50 fps
+    
+    @property
+    def num_pupil_frames(self) -> int:
+        return (self.thorcam_fps * self.sequence_duration) + 1000 # 34 fps
+    
+    @property
     def num_trials(self) -> int:
-        return self._parameters.get('num_trials', 0)
+        return int(self.sequence_duration / self.trial_duration) # 5 seconds per trial 
     
     @num_trials.setter
     def num_trials(self, value):
@@ -76,6 +88,14 @@ class ExperimentConfig:
         return self._parameters
     
     @property
+    def meso_sequence(self) -> useq.MDASequence:
+        return useq.MDASequence(time_plan={"interval": 0, "loops": self.num_meso_frames})
+    
+    @property
+    def pupil_sequence(self) -> useq.MDASequence:
+        return useq.MDASequence(time_plan={"interval": 0, "loops": self.num_pupil_frames})
+    
+    @property #currently unused
     def filename(self):
         return f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.tiff"
 
@@ -92,8 +112,8 @@ class ExperimentConfig:
 
     # Property to compute the full file path, handling existing files
     @property
-    def data_path(self):
-        file = self.filename
+    def meso_data_path(self):
+        file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.tiff"
         return self._generate_unique_file_path(file)
 
     # Property for pupil file path, if needed
@@ -146,7 +166,7 @@ class ExperimentConfig:
         """
         Save the current parameters to a JSON file in the save directory.
         """
-        filename = self._parameters.get('subject') + '_' + self._parameters.get('task') + '.json'
+        filename = f'{self.subject}_{self.task}.json'
         save_path = os.path.join(self.save_dir, filename)
         try:
             with open(save_path, 'w') as f:
