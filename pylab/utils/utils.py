@@ -1,6 +1,6 @@
 import serial.tools.list_ports #pip install pyserial
 import requests
-import nidaqmx
+#import nidaqmx
 import pymmcore_plus
 from useq import MDASequence
 import pandas as pd
