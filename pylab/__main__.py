@@ -21,7 +21,7 @@ def launch():
     """
     Launch napari with mesofield acquisition interface widgets
     """
-    mdacore.load_napari_gui()
+    mdacore.load_custom_gui()
 
 ### Utility commands for querying serial ports and USB IDs ###
 
