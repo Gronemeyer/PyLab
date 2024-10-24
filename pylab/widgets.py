@@ -33,6 +33,9 @@ from pylab.engine import AcquisitionEngine
 # Import necessary modules for the IPython console
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.inprocess import QtInProcessKernelManager
+from qtpy.QtWidgets import QMainWindow
+
+import json
 class MDA(QWidget):
     """An example of using the MDAWidget to create and acquire a useq.MDASequence.
 
@@ -53,14 +56,14 @@ class MDA(QWidget):
         # get the CMMCore instance and load the default config
         self.mmc = core_object
         self.config: ExperimentConfig = cfg
+        self._frame_metadata = {}
 
         # connect MDA acquisition events to local callbacks
-        # in this example we're just printing the current state of the acquisition
         self.mmc.mda.events.frameReady.connect(self._on_frame)
-        self.mmc.mda.events.sequenceFinished.connect(self._on_end)
-        self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
+        # self.mmc.mda.events.sequenceFinished.connect(self._on_end)
+        # self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
-        # instantiate the MDAWidget, and a couple labels for feedback
+        # instantiate the MDAWidget
         self.mda = MDAWidget(mmcore=self.mmc)
         # ----------------------------------Auto-set MDASequence and save_info----------------------------------#
         self.mda.setValue(self.config.pupil_sequence)
@@ -90,16 +93,26 @@ class MDA(QWidget):
     def _update_sequence(self) -> None:
         """Called when the MDA sequence starts."""
 
-    def _on_frame(self, image: np.ndarray, event: MDAEvent) -> None:
+    def _on_frame(self, image: np.ndarray, event: MDAEvent, meta: dict) -> None:
         """Called each time a frame is acquired."""
         # self.current_event.setText(
         #     f"index: {event.index}\n"
         #     f"channel: {getattr(event.channel, 'config', 'None')}\n"
         #     f"exposure: {event.exposure}\n"
         # )
+        self._frame_metadata[event.index['t']] = meta
 
     def _on_end(self) -> None:
         """Called when the MDA sequence ends."""
+        # Save metadata to a new file in the self.mda.save_info.save_dir.text()
+        save_dir = Path(self.mda.save_info.save_dir.text())
+        save_dir.mkdir(parents=True, exist_ok=True)
+        filename = '_frame_metadata.json'
+        
+        with open(save_path, "w") as f:
+            json.dump(self._frame_metadata, f)
+
+
 
     def _on_pause(self, state: bool) -> None:
         """Called when the MDA is paused."""
@@ -120,26 +133,6 @@ def stop_led(mmc):
     
     mmc.getPropertyObject('Arduino-Switch', 'State').stopSequence()
 
-def load_thorcam_mmc_params(mmcore2):
-    print("Loading ThorCam MicroManager configuration...")
-    mmcore2.loadSystemConfiguration(THOR_CONFIG)
-    mmcore2.setROI("ThorCam", 440, 305, 509, 509)
-    mmcore2.setExposure(20)
-    mmcore2.mda.engine.use_hardware_sequencing = True
-    print("ThorCam MicroManager configuration loaded.")
-
-def load_dhyana_mmc_params(mmcore1):
-    print("Loading Dhyana MicroManager configuration...")
-    mmcore1.loadSystemConfiguration(DHYANA_CONFIG)
-    mmcore1.setProperty('Arduino-Switch', 'Sequence', 'On')
-    mmcore1.setProperty('Arduino-Shutter', 'OnOff', '1')
-    mmcore1.setProperty('Dhyana', 'Output Trigger Port', '2')
-    mmcore1.setProperty('Core', 'Shutter', 'Arduino-Shutter')
-    mmcore1.setProperty('Dhyana', 'Gain', 'HDR')
-    mmcore1.setChannelGroup('Channel')
-    print("Dhyana MicroManager configuration loaded.")
-
-from qtpy.QtWidgets import QMainWindow
 class MainWidget(QMainWindow):
     def __init__(self, core_object1: CMMCorePlus, core_object2: CMMCorePlus, cfg: ExperimentConfig):
         super().__init__()
@@ -203,7 +196,10 @@ class MainWidget(QMainWindow):
 
         # Expose variables to the console's namespace
         self.kernel.shell.push({
-            'self': self  # Optional, so you can use 'self' directly in the console
+            'wdgt1': self.mda_widget1,
+            'wdgt2': self.mda_widget2,
+
+            # Optional, so you can use 'self' directly in the console
         })
 
         
