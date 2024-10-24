@@ -7,12 +7,17 @@ from pylab.widgets import (
 from pylab.engine import AcquisitionEngine
 import napari
 from pylab.config import Config
+from qtpy.QtWidgets import QApplication
+from pylab.widgets import MainWidget
+
 
 DHYANA_CONFIG = r'C:/Program Files/Micro-Manager-2.0/mm-sipefield.cfg'
 THOR_CONFIG = r'C:/Program Files/Micro-Manager-2.0/ThorCam.cfg'
 
 mmcore_dhyana = pymmcore_plus.CMMCorePlus.instance()
 mmcore_thor = pymmcore_plus.CMMCorePlus()
+mmcore_dhyana.loadSystemConfiguration()
+mmcore_thor.loadSystemConfiguration()
 
 def load_thorcam_mmc_params(mmcore2=mmcore_thor):
     '''Load ThorCam MicroManager configuration:
@@ -51,19 +56,18 @@ def load_dhyana_mmc_params(mmcore1=mmcore_dhyana):
     mmcore1.setChannelGroup('Channel')
     print("Dhyana MicroManager configuration loaded.")
 
-def load_napari_gui():
+def load_napari_gui(dev = True):
+    
     print("launching Dhyana interface...")
-
     viewer = napari.Viewer()
     viewer.window.add_plugin_dock_widget('napari-micromanager')
+    
     print("Launching Mesofield Interface with ThorCam...")
     mesofield = AcquisitionEngine(viewer, mmcore_dhyana, Config)
     pupil_widget = MDA(mmcore_thor, Config)
-
     viewer.window.add_dock_widget([mesofield, pupil_widget, load_arduino_led, stop_led], 
                                   area='right', name='Mesofield')
 
-    dev = True
     if dev:
         mmcore_dhyana.loadSystemConfiguration()
         mmcore_thor.loadSystemConfiguration()
@@ -72,5 +76,13 @@ def load_napari_gui():
         load_thorcam_mmc_params(mmcore_thor)
         
     viewer.update_console(locals()) # https://github.com/napari/napari/blob/main/examples/update_console.py
-
     napari.run()
+    
+def load_custom_gui():
+    app = QApplication([])
+    mesofield = MainWidget(mmcore_dhyana, mmcore_thor, Config)
+    #pupil_cam = MDA(mmcore_thor, Config)
+    mesofield.show()
+    #pupil_cam.show()
+    app.exec_()
+    

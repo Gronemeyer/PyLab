@@ -28,7 +28,11 @@ from pymmcore_widgets import (
 import useq
 
 from pylab.config import ExperimentConfig
-       
+from pylab.engine import AcquisitionEngine
+
+# Import necessary modules for the IPython console
+from qtconsole.rich_jupyter_widget import RichJupyterWidget
+from qtconsole.inprocess import QtInProcessKernelManager
 class MDA(QWidget):
     """An example of using the MDAWidget to create and acquire a useq.MDASequence.
 
@@ -59,7 +63,7 @@ class MDA(QWidget):
         # instantiate the MDAWidget, and a couple labels for feedback
         self.mda = MDAWidget(mmcore=self.mmc)
         # ----------------------------------Auto-set MDASequence and save_info----------------------------------#
-        self.mda.setValue(useq.MDASequence(time_plan={"interval": 0, "loops": 1000}))
+        self.mda.setValue(self.config.pupil_sequence)
         self.mda.save_info.setValue({'save_dir': self.config.save_dir, 'save_name': self.config.filename, 'format': 'tiff-sequence', 'should_save': True})
         # -------------------------------------------------------------------------------------------------------#
         self.mda.valueChanged.connect(self._update_sequence)
@@ -135,6 +139,84 @@ def load_dhyana_mmc_params(mmcore1):
     mmcore1.setChannelGroup('Channel')
     print("Dhyana MicroManager configuration loaded.")
 
+from qtpy.QtWidgets import QMainWindow
+class MainWidget(QMainWindow):
+    def __init__(self, core_object1: CMMCorePlus, core_object2: CMMCorePlus, cfg: ExperimentConfig):
+        super().__init__()
+        self.setWindowTitle("Main Widget with Two MDA Widgets")
+        
+        # Create a central widget and set it as the central widget of the QMainWindow
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        # Set layout for the central widget
+        main_layout = QHBoxLayout(central_widget)
+        mda_layout = QVBoxLayout()
+        
+        # Create two instances of MDA widget
+        self.mda_widget1 = MDA(core_object1, cfg)
+        self.mda_widget2 = MDA(core_object2, cfg)
+        self.config = AcquisitionEngine(core_object1, cfg)
+        
+        # Add MDA widgets to the layout
+        mda_layout.addWidget(self.mda_widget1)
+        mda_layout.addWidget(self.mda_widget2)
+        main_layout.addLayout(mda_layout)
+        main_layout.addWidget(self.config)
+
+        # Add a menu action to toggle the console
+        
+        self.init_console()
+        toggle_console_action = self.menuBar().addAction("Toggle Console")
+        toggle_console_action.triggered.connect(self.toggle_console)
 
 
+    def toggle_console2(self):
+        self.console_widget.setVisible(not self.console.isVisible())
+        
+    def toggle_console(self):
+        """Show or hide the IPython console."""
+        if self.console_widget and self.console_widget.isVisible():
+            self.console_widget.hide()
+        else:
+            if not self.console_widget:
+                self.init_console()
+            else:
+                self.console_widget.show()
+                
+    def init_console(self):
+        """Initialize the IPython console and embed it into the application."""
+        # Create an in-process kernel
+        self.kernel_manager = QtInProcessKernelManager()
+        self.kernel_manager.start_kernel()
+        self.kernel = self.kernel_manager.kernel
+        self.kernel.gui = 'qt'
+
+        # Create a kernel client and start channels
+        self.kernel_client = self.kernel_manager.client()
+        self.kernel_client.start_channels()
+
+        # Create the console widget
+        self.console_widget = RichJupyterWidget()
+        self.console_widget.kernel_manager = self.kernel_manager
+        self.console_widget.kernel_client = self.kernel_client
+
+        # Expose variables to the console's namespace
+        self.kernel.shell.push({
+            'self': self  # Optional, so you can use 'self' directly in the console
+        })
+
+        
+# if __name__ == "__main__":
+#     app = QApplication(sys.argv)
     
+#     # Assuming core_object1, core_object2, cfg1, and cfg2 are defined elsewhere
+#     core_object1 = CMMCorePlus.instance()
+#     core_object2 = CMMCorePlus.instance()
+#     cfg1 = ExperimentConfig()
+#     cfg2 = ExperimentConfig()
+    
+#     window = MainWindow(core_object1, core_object2, cfg1, cfg2)
+#     window.show()
+    
+#     sys.exit(app.exec_())
