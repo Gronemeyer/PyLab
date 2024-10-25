@@ -34,6 +34,8 @@ from pylab.engine import AcquisitionEngine
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtpy.QtWidgets import QMainWindow
+import pandas as pd
+import datetime
 
 import json
 class MDA(QWidget):
@@ -60,7 +62,7 @@ class MDA(QWidget):
 
         # connect MDA acquisition events to local callbacks
         self.mmc.mda.events.frameReady.connect(self._on_frame)
-        # self.mmc.mda.events.sequenceFinished.connect(self._on_end)
+        self.mmc.mda.events.sequenceFinished.connect(self._on_end)
         # self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
         # instantiate the MDAWidget
@@ -95,27 +97,24 @@ class MDA(QWidget):
 
     def _on_frame(self, image: np.ndarray, event: MDAEvent, meta: dict) -> None:
         """Called each time a frame is acquired."""
-        # self.current_event.setText(
-        #     f"index: {event.index}\n"
-        #     f"channel: {getattr(event.channel, 'config', 'None')}\n"
-        #     f"exposure: {event.exposure}\n"
-        # )
         self._frame_metadata[event.index['t']] = meta
 
     def _on_end(self) -> None:
         """Called when the MDA sequence ends."""
         # Save metadata to a new file in the self.mda.save_info.save_dir.text()
-        save_dir = Path(self.mda.save_info.save_dir.text())
-        save_dir.mkdir(parents=True, exist_ok=True)
-        filename = '_frame_metadata.json'
-        
-        with open(save_path, "w") as f:
-            json.dump(self._frame_metadata, f)
-
-
+        self.save_metadata()
 
     def _on_pause(self, state: bool) -> None:
         """Called when the MDA is paused."""
+
+    def save_metadata(self) -> None:
+        """Save the metadata to a file."""
+        save_dir = Path(self.mda.save_info.save_dir.text())
+        save_dir.mkdir(parents=True, exist_ok=True)
+        filename = '_frame_metadata.json'
+        df = pd.DataFrame(self._frame_metadata)
+        time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        df.T.to_json(f'{save_dir}\\{time}{filename}', orient='records')
 
 @magicgui(call_button='Start LED', mmc={'bind': pymmcore_plus.CMMCorePlus.instance()})   
 def load_arduino_led(mmc):
@@ -162,10 +161,6 @@ class MainWidget(QMainWindow):
         self.init_console()
         toggle_console_action = self.menuBar().addAction("Toggle Console")
         toggle_console_action.triggered.connect(self.toggle_console)
-
-
-    def toggle_console2(self):
-        self.console_widget.setVisible(not self.console.isVisible())
         
     def toggle_console(self):
         """Show or hide the IPython console."""
