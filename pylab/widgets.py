@@ -4,6 +4,7 @@ if TYPE_CHECKING:
 
 import pymmcore_plus
 from magicgui import magicgui
+from itertools import count
 
 from pathlib import Path
 import numpy as np
@@ -58,12 +59,6 @@ class MDA(QWidget):
         # get the CMMCore instance and load the default config
         self.mmc = core_object
         self.config: ExperimentConfig = cfg
-        self._frame_metadata = {}
-
-        # connect MDA acquisition events to local callbacks
-        self.mmc.mda.events.frameReady.connect(self._on_frame)
-        self.mmc.mda.events.sequenceFinished.connect(self._on_end)
-        # self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
         # instantiate the MDAWidget
         self.mda = MDAWidget(mmcore=self.mmc)
@@ -71,7 +66,6 @@ class MDA(QWidget):
         self.mda.setValue(self.config.pupil_sequence)
         self.mda.save_info.setValue({'save_dir': self.config.save_dir, 'save_name': self.config.filename, 'format': 'tiff-sequence', 'should_save': True})
         # -------------------------------------------------------------------------------------------------------#
-        self.mda.valueChanged.connect(self._update_sequence)
         self.setLayout(QHBoxLayout())
 
         self.preview = ImagePreview(mmcore=self.mmc,parent=self.mda)
@@ -91,30 +85,6 @@ class MDA(QWidget):
         self.layout().addWidget(self.mda)
         self.layout().addWidget(live_viewer)
 
-
-    def _update_sequence(self) -> None:
-        """Called when the MDA sequence starts."""
-
-    def _on_frame(self, image: np.ndarray, event: MDAEvent, meta: dict) -> None:
-        """Called each time a frame is acquired."""
-        self._frame_metadata[event.index['t']] = meta
-
-    def _on_end(self) -> None:
-        """Called when the MDA sequence ends."""
-        # Save metadata to a new file in the self.mda.save_info.save_dir.text()
-        self.save_metadata()
-
-    def _on_pause(self, state: bool) -> None:
-        """Called when the MDA is paused."""
-
-    def save_metadata(self) -> None:
-        """Save the metadata to a file."""
-        save_dir = Path(self.mda.save_info.save_dir.text())
-        save_dir.mkdir(parents=True, exist_ok=True)
-        filename = '_frame_metadata.json'
-        df = pd.DataFrame(self._frame_metadata)
-        time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        df.T.to_json(f'{save_dir}\\{time}{filename}', orient='records')
 
 @magicgui(call_button='Start LED', mmc={'bind': pymmcore_plus.CMMCorePlus.instance()})   
 def load_arduino_led(mmc):
@@ -136,7 +106,11 @@ class MainWidget(QMainWindow):
     def __init__(self, core_object1: CMMCorePlus, core_object2: CMMCorePlus, cfg: ExperimentConfig):
         super().__init__()
         self.setWindowTitle("Main Widget with Two MDA Widgets")
-        
+        self._meso_counter = count()
+        self._pupil_counter = count()
+        self._dhyana_metadata: dict[str, dict] = {}
+        self._thor_metadata: dict[str, dict] = {}
+
         # Create a central widget and set it as the central widget of the QMainWindow
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -146,21 +120,78 @@ class MainWidget(QMainWindow):
         mda_layout = QVBoxLayout()
         
         # Create two instances of MDA widget
-        self.mda_widget1 = MDA(core_object1, cfg)
-        self.mda_widget2 = MDA(core_object2, cfg)
+        self.dhyana_gui = MDA(core_object1, cfg)
+        self.thor_gui = MDA(core_object2, cfg)
         self.config = AcquisitionEngine(core_object1, cfg)
         
         # Add MDA widgets to the layout
-        mda_layout.addWidget(self.mda_widget1)
-        mda_layout.addWidget(self.mda_widget2)
+        mda_layout.addWidget(self.dhyana_gui)
+        mda_layout.addWidget(self.thor_gui)
         main_layout.addLayout(mda_layout)
         main_layout.addWidget(self.config)
-
-        # Add a menu action to toggle the console
         
         self.init_console()
         toggle_console_action = self.menuBar().addAction("Toggle Console")
         toggle_console_action.triggered.connect(self.toggle_console)
+        
+        self.dhyana_gui.mmc.mda.events.sequenceStarted.connect(self._dhyana_mda_start)
+        self.thor_gui.mmc.mda.events.sequenceStarted.connect(self._thor_mda_start)
+        self.dhyana_gui.mmc.mda.events.frameReady.connect(self._dhyana_save_frame_metadata)
+        self.thor_gui.mmc.mda.events.frameReady.connect(self._thor_save_frame_metadata)
+        self.dhyana_gui.mmc.mda.events.sequenceFinished.connect(self.save_meso_metadata)
+        self.thor_gui.mmc.mda.events.sequenceFinished.connect(self.save_pupil_metadata)
+
+    def _dhyana_mda_start(self) -> None:
+        """Called when the MDA sequence starts for Dhyana camera."""
+        self._meso_counter = count() # reset iterative counter
+        self._dhyana_metadata = {} # reset frame metadata storage
+        
+    def _thor_mda_start(self) -> None:
+        """Called when the MDA sequence starts for Dhyana camera."""
+        self._pupil_counter = count() # reset iterative counter
+        self._dhyana_metadata = {} # reset frame metadata storage
+
+    def _dhyana_save_frame_metadata(self, image: np.ndarray, event: MDAEvent, frame_metadata: dict) -> None:
+        """Called each time a frame is acquired."""
+        frame_index = next(self._meso_counter)
+        self._dhyana_metadata[frame_index] = frame_metadata
+        
+    def _thor_save_frame_metadata(self, image: np.ndarray, event: MDAEvent, frame_metadata: dict) -> None:
+        """Called each time a frame is acquired."""
+        frame_index = next(self._pupil_counter)
+        self._thor_metadata[frame_index] = frame_metadata
+
+    def save_meso_metadata(self) -> None:
+        """Called when the MDA sequence ends for Dhyana camera."""
+        save_dir = Path('C:/dev/PyLab/tests')  # Make sure you use forward slashes or raw strings for Windows paths
+        save_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+
+        # Construct the filename
+        time_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f'{time_str}_dhyana_frame_metadata.json'
+
+        # Save metadata to the json file
+        df = pd.DataFrame(self._dhyana_metadata)  # Transpose so that the rows are by time index
+        df = df.drop(index=['mda_event'])
+        df.to_json(save_dir / filename)
+
+    def save_pupil_metadata(self) -> None:
+        """Called when the MDA sequence ends for Thor camera."""
+        save_dir = Path('C:/dev/PyLab/tests')  # Ensure consistency in save location
+        save_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+
+        # Construct the filename
+        time_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f'{time_str}_thor_frame_metadata.json'
+
+        # Save metadata to the json file
+        df = pd.DataFrame(self._thor_metadata)
+        df = df.drop(index=['mda_event']) # mda_event is type: MappingProxy, cannot be serialized to json
+        df.to_json(save_dir / filename)
+        
+    def _on_pause(self, state: bool) -> None:
+        """Called when the MDA is paused."""
+
         
     def toggle_console(self):
         """Show or hide the IPython console."""
@@ -191,8 +222,9 @@ class MainWidget(QMainWindow):
 
         # Expose variables to the console's namespace
         self.kernel.shell.push({
-            'wdgt1': self.mda_widget1,
-            'wdgt2': self.mda_widget2,
+            'wdgt1': self.dhyana_gui,
+            'wdgt2': self.thor_gui,
+            'self': self
 
             # Optional, so you can use 'self' directly in the console
         })
