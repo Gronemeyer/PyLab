@@ -14,10 +14,10 @@ from pylab.widgets import MainWidget
 DHYANA_CONFIG = r'C:/Program Files/Micro-Manager-2.0/mm-sipefield.cfg'
 THOR_CONFIG = r'C:/Program Files/Micro-Manager-2.0/ThorCam.cfg'
 
-mmcore_dhyana = pymmcore_plus.CMMCorePlus.instance()
+mmcore_dhyana = pymmcore_plus.CMMCorePlus()
 mmcore_thor = pymmcore_plus.CMMCorePlus()
-mmcore_dhyana.loadSystemConfiguration()
-mmcore_thor.loadSystemConfiguration()
+mmcore_dhyana.loadSystemConfiguration(DHYANA_CONFIG)
+mmcore_thor.loadSystemConfiguration(THOR_CONFIG)
 
 def load_thorcam_mmc_params(mmcore2=mmcore_thor):
     '''Load ThorCam MicroManager configuration:
@@ -28,7 +28,6 @@ def load_thorcam_mmc_params(mmcore2=mmcore_thor):
     '''
     
     print("Loading ThorCam MicroManager configuration...")
-    mmcore2.loadSystemConfiguration(THOR_CONFIG)
     mmcore2.setROI("ThorCam", 440, 305, 509, 509)
     mmcore2.setExposure(20)
     mmcore2.mda.engine.use_hardware_sequencing = True
@@ -47,13 +46,13 @@ def load_dhyana_mmc_params(mmcore1=mmcore_dhyana):
     '''
     
     print("Loading Dhyana MicroManager configuration...")
-    mmcore1.loadSystemConfiguration(DHYANA_CONFIG)
     mmcore1.setProperty('Arduino-Switch', 'Sequence', 'On')
     mmcore1.setProperty('Arduino-Shutter', 'OnOff', '1')
     mmcore1.setProperty('Dhyana', 'Output Trigger Port', '2')
     mmcore1.setProperty('Core', 'Shutter', 'Arduino-Shutter')
     mmcore1.setProperty('Dhyana', 'Gain', 'HDR')
     mmcore1.setChannelGroup('Channel')
+    mmcore1.mda.engine.use_hardware_sequencing = True
     print("Dhyana MicroManager configuration loaded.")
 
 def load_napari_gui(dev = True):
@@ -79,6 +78,8 @@ def load_napari_gui(dev = True):
     napari.run()
     
 def load_custom_gui():
+    load_dhyana_mmc_params(mmcore_dhyana)
+    load_thorcam_mmc_params(mmcore_thor)
     app = QApplication([])
     mesofield = MainWidget(mmcore_dhyana, mmcore_thor, Config)
     #pupil_cam = MDA(mmcore_thor, Config)
