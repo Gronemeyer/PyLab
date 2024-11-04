@@ -33,31 +33,31 @@ class ExperimentConfig:
         self.trial_duration: int = 5
 
     @property
-    def save_dir(self) -> pathlib.Path:
+    def save_dir(self) -> str:
         return self._save_dir
 
     @save_dir.setter
     def save_dir(self, path: str):
-        if isinstance(path, pathlib.Path):
+        if isinstance(path, str):
             self._save_dir = os.path.join(path, 'data')
         else:
             print(f"ExperimentConfig: \n Invalid save directory path: {path}")
 
     @property
     def protocol(self) -> str:
-        return self._parameters.get('protocol', 'default_protocol')
+        return self._parameters.get('protocol', 'protocol')
 
     @property
     def subject(self) -> str:
-        return self._parameters.get('subject', 'default_subject')
+        return self._parameters.get('subject', 'sub')
 
     @property
     def session(self) -> str:
-        return self._parameters.get('session', 'default_session')
+        return self._parameters.get('session', 'ses')
 
     @property
     def task(self) -> str:
-        return self._parameters.get('task', 'default_task')
+        return self._parameters.get('task', 'task')
 
     @property
     def start_on_trigger(self) -> bool:
@@ -70,10 +70,12 @@ class ExperimentConfig:
     @property
     def sequence_duration(self) -> int:
         return self._parameters.get('num_frames', 100) / self.dhyana_fps # 50 fps
+    #TODO: type checking here, cast to ints
     
     @property
     def num_pupil_frames(self) -> int:
         return (self.thorcam_fps * self.sequence_duration) + 1000 # 34 fps
+    #TODO: type checking here, cast to ints
     
     @property
     def num_trials(self) -> int:
