@@ -286,6 +286,8 @@ import numpy as np
 
 _DEFAULT_WAIT = 10
 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message="overflow encountered in ushort_scalars")
 
 class ImagePreview(QWidget):
     """A Widget that displays the last image snapped by active core.
