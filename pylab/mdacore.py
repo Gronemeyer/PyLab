@@ -10,6 +10,7 @@ def load_cores():
     mmcore_thor: pymmcore_plus.CMMCorePlus = pymmcore_plus.CMMCorePlus(mm_path=r'C:\Program Files\Micro-Manager-thor')
     mmcore_dhyana.loadSystemConfiguration(DHYANA_CONFIG)
     mmcore_thor.loadSystemConfiguration(THOR_CONFIG)
+    return mmcore_dhyana, mmcore_thor
 
 def load_thorcam_mmc_params(mmcore):
     ''' Load ThorCam MicroManager configuration:

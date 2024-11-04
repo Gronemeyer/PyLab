@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QApplication
 from pylab.engine import *
 from pylab.gui import MainWindow, run_gui
 from pylab.config import Config
-from pylab.mdacore import load_dev_cores
+from pylab.mdacore import load_dev_cores, load_dhyana_mmc_params, load_thorcam_mmc_params, load_cores
 '''
 This is the client terminal command line interface
 
@@ -33,7 +33,16 @@ def launch(dev):
         mmcore_dhyana.run_mda(useq.MDASequence(time_plan={"interval": 0, "loops": 20000}))#, output=r'C:/dev/dh.ome.tif')
         mmcore_thor.run_mda(useq.MDASequence(time_plan={"interval": 0, "loops": 20000}))#, output=r'C:/dev/thor.ome.tif')
     else:
-        run_gui(mmcore_dhyana, mmcore_thor, Config)
+            app = QApplication([])
+            mmcore_dhyana, mmcore_thor = load_cores()
+            engine1 = MesoEngine(mmcore_dhyana, True)
+            engine2 = PupilEngine(mmcore_thor, True)
+            mmcore_dhyana.register_mda_engine(engine1)
+            mmcore_thor.register_mda_engine(engine2)
+            cfg = Config
+            mesofield = MainWindow(mmcore_dhyana, mmcore_thor, cfg)
+            mesofield.show()
+            app.exec_()
 
 @cli.command()
 def dev():
@@ -42,6 +51,10 @@ def dev():
     """
     app = QApplication([])
     core1, core2 = load_dev_cores()
+    engine1 = MesoEngine(core1, True)
+    engine2 = PupilEngine(core2, False)
+    core1.register_mda_engine(engine1)
+    core2.register_mda_engine(engine2)
     cfg = Config
     mesofield = MainWindow(core1, core2, cfg)
     mesofield.show()
