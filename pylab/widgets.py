@@ -4,6 +4,8 @@ import os
 import subprocess #for PsychoPy Subprocess
 from magicgui import magicgui
 
+from PyQt6.QtCore import pyqtSignal
+
 from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -70,7 +72,7 @@ class MDA(QWidget):
         self.mda = MDAWidget(mmcore=self.mmc)
         # ----------------------------------Auto-set MDASequence and save_info----------------------------------#
         self.mda.setValue(self.config.pupil_sequence)
-        self.mda.save_info.setValue({'save_dir': self.config.save_dir, 'save_name': self.config.filename, 'format': 'tiff-sequence', 'should_save': True})
+        self.mda.save_info.setValue({'save_dir': r'C:/dev', 'save_name': 'file', 'format': 'ome-tiff', 'should_save': True})
         # -------------------------------------------------------------------------------------------------------#
         self.setLayout(QHBoxLayout())
 
@@ -101,6 +103,10 @@ class ConfigController(QWidget):
 
     launch_psychopy: launches the PsychoPy experiment as a subprocess with ExperimentConfig parameters
     """
+    # ==================================== Signals ===================================== #
+    configUpdated = pyqtSignal(object)
+    # ------------------------------------------------------------------------------------- #
+    
     def __init__(self, mmc: pymmcore_plus.CMMCorePlus, cfg):
         super().__init__()
         self._mmc = mmc
@@ -201,6 +207,7 @@ class ConfigController(QWidget):
                 key = self.config_table.item(row, 0).text()
                 value = self.config_table.item(row, 1).text()
                 self.config.update_parameter(key, value)
+            self.configUpdated.emit(self.config) # EMIT SIGNAL TO LISTENERS                
         except Exception as e:
             print(f"Error updating config from table: check AcquisitionEngine._on_table_edit()\n{e}")
 
@@ -219,6 +226,8 @@ class ConfigController(QWidget):
                 self.config_table.setItem(i, j, item)
 
         self.config_table.blockSignals(False)  # Re-enable signals
+
+        self.configUpdated.emit(self.config) # EMIT SIGNAL TO LISTENERS
 
     # ----------------------------------------------------------------------------------------------- #
 
@@ -261,16 +270,4 @@ class ConfigController(QWidget):
         self.config.save_parameters()
 
     #-----------------------------------------------------------------------------------------------#
-# if __name__ == "__main__":
-#     app = QApplication(sys.argv)
-    
-#     # Assuming core_object1, core_object2, cfg1, and cfg2 are defined elsewhere
-#     core_object1 = CMMCorePlus.instance()
-#     core_object2 = CMMCorePlus.instance()
-#     cfg1 = ExperimentConfig()
-#     cfg2 = ExperimentConfig()
-    
-#     window = MainWindow(core_object1, core_object2, cfg1, cfg2)
-#     window.show()
-    
-#     sys.exit(app.exec_())
+

@@ -4,14 +4,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from qtpy.QtWidgets import (
-    QApplication, 
-    QMainWindow, 
-    QWidget, 
-    QHBoxLayout, 
-    QVBoxLayout,
-)
-
 from pymmcore_plus import CMMCorePlus
 from useq import MDAEvent
 
@@ -19,8 +11,16 @@ from useq import MDAEvent
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.inprocess import QtInProcessKernelManager
 
+from qtpy.QtWidgets import (
+    QMainWindow, 
+    QWidget, 
+    QHBoxLayout, 
+    QVBoxLayout,
+)
+
 from pylab.widgets import MDA, ConfigController
 from pylab.config import ExperimentConfig
+
 
 class MainWindow(QMainWindow):
     def __init__(self, core_object1: CMMCorePlus, core_object2: CMMCorePlus, cfg: ExperimentConfig):
@@ -60,6 +60,7 @@ class MainWindow(QMainWindow):
         self.thor_gui.mmc.mda.events.frameReady.connect(self._thor_save_frame_metadata)
         #self.dhyana_gui.mmc.mda.events.sequenceFinished.connect(self.save_meso_metadata)
         #self.thor_gui.mmc.mda.events.sequenceFinished.connect(self.save_pupil_metadata)
+        self.thor_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir), 'save_name': str(self.config.pupil_file_path), 'format': 'ome-tiff', 'should_save': True})
 
     def _dhyana_mda_start(self) -> None:
         """Called when the MDA sequence starts for Dhyana camera."""
@@ -83,7 +84,7 @@ class MainWindow(QMainWindow):
 
     def save_meso_metadata(self) -> None:
         """Called when the MDA sequence ends for Dhyana camera."""
-        save_dir = Path('C:/dev/PyLab/tests')  # Make sure you use forward slashes or raw strings for Windows paths
+        save_dir = Path('C:/dev')  # Make sure you use forward slashes or raw strings for Windows paths
         save_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
 
         # Construct the filename
@@ -92,12 +93,12 @@ class MainWindow(QMainWindow):
 
         # Save metadata to the json file
         df = pd.DataFrame(self._dhyana_metadata)  # Transpose so that the rows are by time index
-        df = df.drop(index=['mda_event'])
+        #df = df.drop(index=['mda_event'])
         df.to_json(save_dir / filename)
 
     def save_pupil_metadata(self) -> None:
         """Called when the MDA sequence ends for Thor camera."""
-        save_dir = Path('C:/dev/PyLab/tests')  # Ensure consistency in save location
+        save_dir = Path('C:/dev')  # Ensure consistency in save location
         save_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
 
         # Construct the filename
@@ -106,12 +107,11 @@ class MainWindow(QMainWindow):
 
         # Save metadata to the json file
         df = pd.DataFrame(self._thor_metadata)
-        df = df.drop(index=['mda_event']) # mda_event is type: MappingProxy, cannot be serialized to json
+        #df = df.drop(index=['mda_event']) # mda_event is type: MappingProxy, cannot be serialized to json
         df.to_json(save_dir / filename)
         
     def _on_pause(self, state: bool) -> None:
         """Called when the MDA is paused."""
-
         
     def toggle_console(self):
         """Show or hide the IPython console."""
