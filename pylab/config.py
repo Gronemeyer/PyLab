@@ -114,14 +114,14 @@ class ExperimentConfig:
 
     # Property to compute the full file path, handling existing files
     @property
-    def meso_data_path(self):
-        file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.tiff"
+    def meso_file_path(self):
+        file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.ome.tiff"
         return self._generate_unique_file_path(file)
 
     # Property for pupil file path, if needed
     @property
     def pupil_file_path(self):
-        file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}_pupil.tiff"
+        file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}_pupil.ome.tiff"
         return self._generate_unique_file_path(file)
 
     @property
