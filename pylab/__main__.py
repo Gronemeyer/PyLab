@@ -1,11 +1,18 @@
 """Entry point for pylab."""
 
+
+
 #from pylab.cli import main  # pragma: no cover
+import os
+os.environ['NUMEXPR_MAX_THREADS'] = '4'
+os.environ['NUMEXPR_NUM_THREADS'] = '2'
+import numexpr as ne 
+
 import click
 #from pylab.mdacore import *
 from PyQt6.QtWidgets import QApplication
 from pylab.engine import *
-from pylab.gui import MainWindow, run_gui
+from pylab.gui import MainWindow
 from pylab.config import Config
 from pylab.mdacore import load_dev_cores, load_dhyana_mmc_params, load_thorcam_mmc_params, load_cores
 '''
@@ -35,6 +42,8 @@ def launch(dev):
     else:
             app = QApplication([])
             mmcore_dhyana, mmcore_thor = load_cores()
+            load_dhyana_mmc_params(mmcore_dhyana)
+            load_thorcam_mmc_params(mmcore_thor)
             engine1 = MesoEngine(mmcore_dhyana, True)
             engine2 = PupilEngine(mmcore_thor, True)
             mmcore_dhyana.register_mda_engine(engine1)
@@ -60,42 +69,15 @@ def dev():
     mesofield.show()
     app.exec_()
 
-
-
-### Utility commands for querying serial ports and USB IDs ###
-
 @cli.command()
-def get_devices():
-    """Download USB IDs and list all serial ports."""
-    from .utils.utils import download_usb_ids, parse_usb_ids, list_serial_ports
-
-    usb_ids_content = download_usb_ids()
-    if usb_ids_content:
-        usb_ids = parse_usb_ids(usb_ids_content)
-        list_serial_ports(usb_ids)
-    else:
-        click.echo("Failed to download USB IDs.")
-
-### NI-DAQ commands ###
-from .utils.utils import list_nidaq_devices, test_nidaq_connection, read_analog_input
-
-@click.command()
-def list_devices():
-    """List all connected NI-DAQ devices."""
-    devices = list_nidaq_devices()
-    click.echo("\n".join(devices))
-
-@click.command()
-@click.option('--device_name', default='Dev2', help='Device name to test connection.')
-def test_connection(device_name):
-    """Test connection to a specified NI-DAQ device."""
-    if test_nidaq_connection(device_name):
-        click.echo(f"Successfully connected to {device_name}.")
-    else:
-        click.echo(f"Failed to connect to {device_name}.")
-
-cli.add_command(list_devices)
-cli.add_command(test_connection)
+@click.option('--frames', default=100, help='Number of frames for the MDA test.')
+def test_mda(frames):
+    """
+    Start the application.
+    """
+    from pylab.mdacore import test_mda
+    test_mda(frames)
+    print('done')
 
 
 if __name__ == "__main__":  # pragma: no cover
