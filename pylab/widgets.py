@@ -18,7 +18,8 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QHeaderView,
     QFileDialog,
-    QTableWidgetItem
+    QTableWidgetItem,
+    QMessageBox
 )
 
 from pymmcore_widgets import (
@@ -29,6 +30,7 @@ from pymmcore_widgets import (
 )
 
 from pylab.config import ExperimentConfig
+from pylab.writer import CustomWriter
 
 @magicgui(call_button='Start LED', mmc={'bind': pymmcore_plus.CMMCorePlus.instance()})   
 def load_arduino_led(mmc):
@@ -45,6 +47,36 @@ def stop_led(mmc):
     """ Stop the Arduino-Switch LED sequence """
     
     mmc.getPropertyObject('Arduino-Switch', 'State').stopSequence()
+
+class CustomMDAWidget(MDAWidget):
+    def run_mda(self) -> None:
+        """Run the MDA sequence experiment."""
+        # in case the user does not press enter after editing the save name.
+        self.save_info.save_name.editingFinished.emit()
+
+        # if autofocus has been requested, but the autofocus device is not engaged,
+        # and position-specific offsets haven't been set, show a warning
+        pos = self.stage_positions
+        if (
+            self.af_axis.value()
+            and not self._mmc.isContinuousFocusLocked()
+            and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
+            and not self._confirm_af_intentions()
+        ):
+            return
+
+        sequence = self.value()
+
+        # technically, this is in the metadata as well, but isChecked is more direct
+        if self.save_info.isChecked():
+            save_path = self._update_save_path_from_metadata(
+                sequence, update_metadata=True
+            )
+        else:
+            save_path = None
+
+        # run the MDA experiment asynchronously
+        self._mmc.run_mda(sequence, output=CustomWriter(save_path))
 
 class MDA(QWidget):
     """An example of using the MDAWidget to create and acquire a useq.MDASequence.
@@ -68,7 +100,7 @@ class MDA(QWidget):
         self.config: ExperimentConfig = cfg
 
         # instantiate the MDAWidget
-        self.mda = MDAWidget(mmcore=self.mmc)
+        self.mda = CustomMDAWidget(mmcore=self.mmc)
         # ----------------------------------Auto-set MDASequence and save_info----------------------------------#
         self.mda.setValue(self.config.pupil_sequence)
         self.mda.save_info.setValue({'save_dir': r'C:/dev', 'save_name': 'file', 'format': 'ome-tiff', 'should_save': True})
@@ -105,17 +137,17 @@ class ConfigController(QWidget):
     """
     # ==================================== Signals ===================================== #
     configUpdated = pyqtSignal(object)
+    recordStarted = pyqtSignal()
     # ------------------------------------------------------------------------------------- #
     
-    def __init__(self, mmc: pymmcore_plus.CMMCorePlus, cfg):
+    def __init__(self, mmc1: pymmcore_plus.CMMCorePlus, mmc2: pymmcore_plus.CMMCorePlus, cfg):
         super().__init__()
-        self._mmc = mmc
+        self._mmc1 = mmc1
+        self._mmc2 = mmc2
         self.config: ExperimentConfig = cfg
 
         # Create main layout
         self.layout = QVBoxLayout(self)
-
-        configUpdated = pyqtSignal(object)
 
         # ==================================== GUI Widgets ===================================== #
 
@@ -235,20 +267,22 @@ class ConfigController(QWidget):
 
     def record(self):
         """Run the MDA sequence with the global Config object parameters loaded from JSON."""
+        import keyboard
 
         # Wait for spacebar press if start_on_trigger is True
         wait_for_trigger = self.config.start_on_trigger
         if wait_for_trigger:
             print("Press spacebar to start recording...")
-            # self.launch_psychopy()
+            pass
+            self.launch_psychopy()
+            print("Press spacebar to start recording...")
+            self.show_popup()
             # Note: Implement key press detection suitable for PyQt5
             # For example, using QEventLoop or custom dialog
-
+        # Emit signal to notify other widgets
+        self.recordStarted.emit()
         # Run the MDA sequence
-        self._mmc.run_mda(
-            self.config.meso_sequence,
-            output=self.config.meso_data_path
-        )
+
 
     def launch_psychopy(self):
         """Launches a PsychoPy experiment as a subprocess with the current ExperimentConfig parameters."""
@@ -265,9 +299,21 @@ class ConfigController(QWidget):
 
         subprocess.Popen(args, start_new_session=True)
     
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Space:
+            self.event_loop.quit()
+    
+    def show_popup(self):
+        msg_box = QMessageBox()
+        msg_box.setText("Press spacebar to start recording.")
+        #msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
+    
     def save_config(self):
         """ Save the current configuration to a JSON file """
         self.config.save_parameters()
+        
+    #TODO: add breakdown method
 
     #-----------------------------------------------------------------------------------------------#
 
@@ -339,17 +385,17 @@ class ImagePreview(QWidget):
 
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
+        self.streaming_timer.setInterval(int(_DEFAULT_WAIT))
         self.streaming_timer.timeout.connect(self._on_streaming_timeout)
 
         ev = self._mmc.events
         ev.imageSnapped.connect(self._on_image_snapped)
         ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
-        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
+        #ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
         ev.exposureChanged.connect(self._on_exposure_changed)
         
         enev = self._mmc.mda.events
-        enev.frameReady.connect(self._on_image_snapped)
+        enev.frameReady.connect(self._update_image)
 
         self.image: scene.visuals.Image | None = None
         self.setLayout(QVBoxLayout())
