@@ -4,6 +4,7 @@ import pathlib
 import pandas as pd
 import os
 import useq
+import warnings
 
 
 class ExperimentConfig:
@@ -34,12 +35,12 @@ class ExperimentConfig:
 
     @property
     def save_dir(self) -> str:
-        return self._save_dir
+        return os.path.join(self._save_dir, 'data')
 
     @save_dir.setter
     def save_dir(self, path: str):
         if isinstance(path, str):
-            self._save_dir = os.path.join(path, 'data')
+            self._save_dir = os.path.abspath(path)
         else:
             print(f"ExperimentConfig: \n Invalid save directory path: {path}")
 
@@ -134,6 +135,23 @@ class ExperimentConfig:
     def json_path(self):
         return self._json_file_path
     
+    @property
+    def psychopy_filename(self) -> str:
+        py_files = list(pathlib.Path(self._save_dir).glob('*.py'))
+        if py_files:
+            return py_files[0].name
+        else:
+            warnings.warn(f'No Psychopy experiment file found in directory {pathlib.Path(self.save_dir).parent}.')
+        return self._parameters.get('psychopy_filename', 'experiment.py')
+    
+    @psychopy_filename.setter
+    def psychopy_filename(self, value: str) -> None:
+        self._parameters['psychopy_filename'] = value
+
+    @property
+    def psychopy_path(self) -> str:
+        return os.path.join(self._save_dir, self.psychopy_filename)
+    
     # Helper method to generate a unique file path
     def _generate_unique_file_path(self, file):
         os.makedirs(self.bids_dir, exist_ok=True)
@@ -168,8 +186,8 @@ class ExperimentConfig:
         """
         Save the current parameters to a JSON file in the save directory.
         """
-        filename = f'{self.subject}_{self.task}.json'
-        save_path = os.path.join(self.save_dir, filename)
+        filename = f'{self.subject}_{self.task}_ExperimentConfig.json'
+        save_path = os.path.join(self.bids_dir, filename)
         try:
             with open(save_path, 'w') as f:
                 json.dump(self._parameters, f, indent=4)

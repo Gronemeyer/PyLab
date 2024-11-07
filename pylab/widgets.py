@@ -289,7 +289,7 @@ class ConfigController(QWidget):
         # Build the command arguments
         args = [
             "C:\\Program Files\\PsychoPy\\python.exe",
-            "F:\\jgronemeyer\\Gratings_vis_0.6.py",
+            f'{self.config.psychopy_path}',
             f'{self.config.protocol}',
             f'{self.config.subject}',
             f'{self.config.session}',
