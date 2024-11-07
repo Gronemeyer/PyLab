@@ -1,8 +1,9 @@
 import pymmcore_plus
+from pymmcore_plus.metadata import SummaryMetaV1
 import useq
 import time
 
-from typing import TYPE_CHECKING, Iterable, Mapping
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 if TYPE_CHECKING:
     from pymmcore_plus.core._sequencing import SequencedEvent
@@ -84,12 +85,23 @@ class PupilEngine(MDAEngine):
         pass
     
 class MesoEngine(MDAEngine):
-    # def __init__(self, mmc: pymmcore_plus.CMMCorePlus, use_hardware_sequencing: bool = True) -> None:
-    #     super().__init__(mmc)
-    #     self._mmc = mmc
-    #     self.use_hardware_sequencing = use_hardware_sequencing
+    def __init__(self, mmc: pymmcore_plus.CMMCorePlus, use_hardware_sequencing: bool = True) -> None:
+         super().__init__(mmc)
+         self._mmc = mmc
+         self.use_hardware_sequencing = use_hardware_sequencing
+         self.led_sequence: Sequence[str] = ['4', '4', '2', '2']
     #     self._meso_counter = None
     #     self._meso_metadata = {}
+    
+    def setup_sequence(self, sequence: useq.MDASequence) -> SummaryMetaV1 | None:
+        """Perform setup required before the sequence is executed."""
+        self._mmc.getPropertyObject('Arduino-Switch', 'State').loadSequence(self.led_sequence)
+        self._mmc.getPropertyObject('Arduino-Switch', 'State').setValue(4) # seems essential to initiate serial communication
+        self._mmc.getPropertyObject('Arduino-Switch', 'State').startSequence()
+        logging.info(f'{self.__str__()} setup_sequence loaded LED sequence: {self.led_sequence} at time: {time.time()}')
+        
+        print('Arduino loaded')
+        return super().setup_sequence(sequence)
     
     def exec_sequenced_event(self, event: 'SequencedEvent') -> Iterable['PImagePayload']:
         """Execute a sequenced (triggered) event and return the image data.
@@ -148,5 +160,6 @@ class MesoEngine(MDAEngine):
     def teardown_sequence(self, sequence: useq.MDASequence) -> None:
         """Perform any teardown required after the sequence has been executed."""
         logging.info(f'MesoEngine teardown_sequence at time: {time.time()}')
+        self._mmc.getPropertyObject('Arduino-Switch', 'State').stopSequence()
         pass
 
