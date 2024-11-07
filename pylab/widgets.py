@@ -272,16 +272,10 @@ class ConfigController(QWidget):
         # Wait for spacebar press if start_on_trigger is True
         wait_for_trigger = self.config.start_on_trigger
         if wait_for_trigger:
-            print("Press spacebar to start recording...")
-            pass
             self.launch_psychopy()
-            print("Press spacebar to start recording...")
             self.show_popup()
-            # Note: Implement key press detection suitable for PyQt5
-            # For example, using QEventLoop or custom dialog
         # Emit signal to notify other widgets
-        self.recordStarted.emit()
-        # Run the MDA sequence
+        self.recordStarted.emit() # Signals to start the MDA sequence
 
 
     def launch_psychopy(self):
