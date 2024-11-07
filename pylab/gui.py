@@ -55,8 +55,8 @@ class MainWindow(QMainWindow):
         self.cfg_gui.recordStarted.connect(self.record)
         
     def record(self):
-        self.dhyana_gui.mda.run_mda()
         self.thor_gui.mda.run_mda()   
+        self.dhyana_gui.mda.run_mda()
          
     def _update_config(self, config):
         self.config: ExperimentConfig = config
