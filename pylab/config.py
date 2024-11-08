@@ -70,12 +70,12 @@ class ExperimentConfig:
     
     @property
     def sequence_duration(self) -> int:
-        return self._parameters.get('num_frames', 100) / self.dhyana_fps # 50 fps
+        return int(self._parameters.get('num_frames', 100)) / self.dhyana_fps # 50 fps
     #TODO: type checking here, cast to ints
     
     @property
     def num_pupil_frames(self) -> int:
-        return (self.thorcam_fps * self.sequence_duration) + 1000 # 34 fps
+        return int((self.thorcam_fps * self.sequence_duration)) + 100 # 34 fps
     #TODO: type checking here, cast to ints
     
     @property
