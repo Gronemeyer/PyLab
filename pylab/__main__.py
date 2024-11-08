@@ -60,8 +60,8 @@ def dev():
     """
     app = QApplication([])
     core1, core2 = load_dev_cores()
-    engine1 = MesoEngine(core1, True)
-    engine2 = PupilEngine(core2, False)
+    engine1 = DevEngine(core1, True)
+    engine2 = DevEngine(core2, False)
     core1.register_mda_engine(engine1)
     core2.register_mda_engine(engine2)
     cfg = Config
