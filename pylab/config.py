@@ -188,11 +188,18 @@ class ExperimentConfig:
         """
         filename = f'{self.subject}_{self.task}_ExperimentConfig.json'
         save_path = os.path.join(self.bids_dir, filename)
+
+        properties = [prop for prop in dir(self.__class__) if isinstance(getattr(self.__class__, prop), property)]
+        exclude_properties = {'dataframe', 'pupil_sequence', 'meso_sequence'}
+        parameters = {prop: getattr(self, prop) for prop in properties if prop not in exclude_properties}
+        
         try:
-            with open(save_path, 'w') as f:
-                json.dump(self._parameters, f, indent=4)
+            with open(save_path, 'w') as file:
+                json.dump(parameters, file, indent=4)
             print(f"Parameters saved to {save_path}")
         except Exception as e:
             print(f"Error saving parameters: {e}")
+            
+
 
 Config = ExperimentConfig()
