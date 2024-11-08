@@ -28,7 +28,6 @@ def load_cores():
     logging.info(f"Cores {mmcore_dhyana} and {mmcore_thor} initialized successfully with {mmcore_dhyana.getCircularBufferMemoryFootprint()} and {mmcore_thor.getCircularBufferMemoryFootprint()} memory footprint")   
     return mmcore_dhyana, mmcore_thor
 
-
 def test_mda(frames: int = 20000):    
     from pymmcore_plus.mda.handlers import OMETiffWriter, ImageSequenceWriter
     from pylab.writer import CustomWriter
@@ -76,28 +75,6 @@ def load_dhyana_mmc_params(mmcore):
     mmcore.setChannelGroup('Channel')
     mmcore.mda.engine.use_hardware_sequencing = True
     logging.info(f"{mmcore} Dhyana parameters loaded by {load_dhyana_mmc_params.__name__}")
-
-def load_napari_gui(dev = True):
-    
-    print("launching Dhyana interface...")
-    viewer = napari.Viewer()
-    viewer.window.add_plugin_dock_widget('napari-micromanager')
-    
-    print("Launching Mesofield Interface with ThorCam...")
-    mesofield = AcquisitionEngine(viewer, mmcore_dhyana, Config)
-    pupil_widget = MDA(mmcore_thor, Config)
-    viewer.window.add_dock_widget([mesofield, pupil_widget, load_arduino_led, stop_led], 
-                                  area='right', name='Mesofield')
-
-    if dev:
-        mmcore_dhyana.loadSystemConfiguration()
-        mmcore_thor.loadSystemConfiguration()
-    else:
-        load_dhyana_mmc_params(mmcore_dhyana)
-        load_thorcam_mmc_params(mmcore_thor)
-        
-    viewer.update_console(locals()) # https://github.com/napari/napari/blob/main/examples/update_console.py
-    napari.run()
     
 def load_dev_cores() -> pymmcore_plus.CMMCorePlus:
     core1 = pymmcore_plus.CMMCorePlus()
