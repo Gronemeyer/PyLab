@@ -36,7 +36,7 @@ def load_metadata(directory):
 
 def plot_camera_intervals(frame_metadata_df, pupil_frame_metadata_df, threshold=1):
     
-    def process_dataframe(df, label):
+    def process_dataframe(df):
         df['TimeReceivedByCore'] = pd.to_datetime(df['TimeReceivedByCore'], format='%Y-%m-%d %H:%M:%S.%f')  # Convert to datetime
         df['runner_time_ms'] = df['runner_time_ms'].astype(float)  # Convert to float
 
@@ -49,24 +49,106 @@ def plot_camera_intervals(frame_metadata_df, pupil_frame_metadata_df, threshold=
         # Compute Differences Between Intervals
         df['interval_difference'] = df['runner_interval'] - df['core_interval']
         
-        # Plot the data
-        plt.plot(df['TimeReceivedByCore'], df['interval_difference'], label=label)
+        # Identify divergence points
+        df['divergence'] = (df['interval_difference'].abs() > threshold)
+        
+        # Compute cumulative times
+        df['cumulative_runner_time'] = df['runner_interval'].cumsum()
+        df['cumulative_core_time'] = df['core_interval'].cumsum()
+        
+        return df
     
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 20))
     
     if frame_metadata_df is not None:
-        process_dataframe(frame_metadata_df, 'Dhyana')
+        df1 = process_dataframe(frame_metadata_df)
     
     if pupil_frame_metadata_df is not None:
-        process_dataframe(pupil_frame_metadata_df, 'ThorCam')
+        df2 = process_dataframe(pupil_frame_metadata_df)
     
-    plt.axhline(y=threshold, color='r', linestyle='--', label='Threshold')
-    plt.xlabel('Time Received By Core')
-    plt.ylabel('Interval Difference (ms)')
-    plt.title('Interval Differences Over Time')
+    # ----------- Camera 1: Runner Time Intervals and Core Time Interval Plot 1
+    plt.subplot(6, 1, 1)
+    plt.plot(df1.index, df1['runner_interval'], label='Runner Time Intervals', marker='o')
+    plt.plot(df1.index, df1['core_interval'], label='Core Time Intervals', marker='x')
+    plt.xlabel('Frame Index')
+    plt.ylabel('Interval (ms)')
+    plt.title('Camera 1: Intervals Between Frames')
     plt.legend()
     plt.grid(True)
 
+    # Highlighting divergence points
+    for idx in df1[df1['divergence']].index:
+        plt.axvline(x=idx, color='red', linestyle='--', alpha=0.5)
+
+    # ----------- Camera 1: Difference Between Intervals Plot 2
+    plt.subplot(6, 1, 2)
+    plt.plot(df1.index, df1['interval_difference'], label='Interval Difference (Runner - Core)', marker='d')
+    plt.xlabel('Frame Index')
+    plt.ylabel('Interval Difference (ms)')
+    plt.title('Camera 1: Difference Between Runner and Core Intervals')
+    plt.axhline(y=threshold, color='red', linestyle='--', alpha=0.5, label='Threshold')
+    plt.axhline(y=-threshold, color='red', linestyle='--', alpha=0.5)
+    plt.legend()
+    plt.grid(True)
+
+    # Highlight divergence points
+    for idx in df1[df1['divergence']].index:
+        plt.axvline(x=idx, color='red', linestyle='--', alpha=0.5)
+
+    # ----------- Camera 1: Cumulative Time Comparison Plot 3
+    plt.subplot(6, 1, 3)
+    df1['cumulative_runner_time'] = df1['runner_interval'].cumsum()
+    df1['cumulative_core_time'] = df1['core_interval'].cumsum()
+    plt.plot(df1.index, df1['cumulative_runner_time'], label='Cumulative Runner Time', marker='o')
+    plt.plot(df1.index, df1['cumulative_core_time'], label='Cumulative Core Time', marker='x')
+    plt.xlabel('Frame Index')
+    plt.ylabel('Cumulative Time (ms)')
+    plt.title('Camera 1: Cumulative Time Comparison')
+    plt.legend()
+    plt.grid(True)
+
+    # ----------- Camera 2: Runner Time Intervals and Core Time Interval Plot 4
+    plt.subplot(6, 1, 4)
+    plt.plot(df2.index, df2['runner_interval'], label='Runner Time Intervals', marker='o')
+    plt.plot(df2.index, df2['core_interval'], label='Core Time Intervals', marker='x')
+    plt.xlabel('Frame Index')
+    plt.ylabel('Interval (ms)')
+    plt.title('Camera 2: Intervals Between Frames')
+    plt.legend()
+    plt.grid(True)
+
+    # Highlighting divergence points
+    for idx in df2[df2['divergence']].index:
+        plt.axvline(x=idx, color='red', linestyle='--', alpha=0.5)
+
+    # ----------- Camera 2: Difference Between Intervals Plot 5
+    plt.subplot(6, 1, 5)
+    plt.plot(df2.index, df2['interval_difference'], label='Interval Difference (Runner - Core)', marker='d')
+    plt.xlabel('Frame Index')
+    plt.ylabel('Interval Difference (ms)')
+    plt.title('Camera 2: Difference Between Runner and Core Intervals')
+    plt.axhline(y=threshold, color='red', linestyle='--', alpha=0.5, label='Threshold')
+    plt.axhline(y=-threshold, color='red', linestyle='--', alpha=0.5)
+    plt.legend()
+    plt.grid(True)
+
+    # Highlight divergence points
+    for idx in df2[df2['divergence']].index:
+        plt.axvline(x=idx, color='red', linestyle='--', alpha=0.5)
+
+    # ----------- Camera 2: Cumulative Time Comparison Plot 6
+    plt.subplot(6, 1, 6)
+    df2['cumulative_runner_time'] = df2['runner_interval'].cumsum()
+    df2['cumulative_core_time'] = df2['core_interval'].cumsum()
+    plt.plot(df2.index, df2['cumulative_runner_time'], label='Cumulative Runner Time', marker='o')
+    plt.plot(df2.index, df2['cumulative_core_time'], label='Cumulative Core Time', marker='x')
+    plt.xlabel('Frame Index')
+    plt.ylabel('Cumulative Time (ms)')
+    plt.title('Camera 2: Cumulative Time Comparison')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
     plt.show()
 
 def load_wheel_data(directory) -> pd.DataFrame:
@@ -81,7 +163,7 @@ def load_wheel_data(directory) -> pd.DataFrame:
     # Create a pandas dataframe
     return df
     
-def plot_wheel_data(wheel_df: pd.DataFrame):
+def plot_wheel_data2(wheel_df: pd.DataFrame):
     # Calculate the time difference in seconds
     total_seconds = wheel_df['timestamp'].array[-1] - wheel_df['timestamp'][0]  # Get Range
     time = np.arange(0, total_seconds, 1)  # create array [0,1,...12] with the total_seconds
@@ -160,6 +242,53 @@ def plot_stim_times(df):
     plt.xlabel('Time')
     plt.legend()
     plt.grid(True)
+    plt.show()
+
+def plot_wheel_data(wheel_df: pd.DataFrame, stim_df: pd.DataFrame):
+    # Calculate the time difference in seconds
+    total_seconds = wheel_df['timestamp'].array[-1] - wheel_df['timestamp'][0]  # Get Range
+    time = np.arange(0, total_seconds, 1)  # create array [0,1,...12] with the total_seconds
+
+    # Create separate plots for each variable
+    plt.figure(figsize=(10, 6))#, dpi=300)
+
+    # Plot 'speed' over time
+    plt.subplot(3, 1, 1)
+    plt.plot(wheel_df['timestamp'], wheel_df['speed'])
+    plt.title('Speed')
+    plt.xlabel('Time (secs)')
+    plt.ylabel('Speed')
+    for start_time in stim_df['stim_grayScreen.started']:
+        plt.axvline(x=start_time, color='red', linestyle='--', label='stim_grayScreen.started')
+    for start_time in stim_df['stim_grating.started']:
+        plt.axvline(x=start_time, color='green', linestyle='--', label='stim_grating.started')
+
+    # Plot 'distance' over time
+    plt.subplot(3, 1, 2)
+    plt.plot(wheel_df['timestamp'], wheel_df['distance'])
+    plt.title('Distance')
+    plt.xlabel('Time (secs)')
+    plt.ylabel('Distance')
+    for start_time in stim_df['stim_grayScreen.started']:
+        plt.axvline(x=start_time, color='red', linestyle='--', label='stim_grayScreen.started')
+    for start_time in stim_df['stim_grating.started']:
+        plt.axvline(x=start_time, color='green', linestyle='--', label='stim_grating.started')
+
+    # Plot 'direction' over time
+    plt.subplot(3, 1, 3)
+    plt.plot(wheel_df['timestamp'], wheel_df['direction'])
+    plt.title('Direction')
+    plt.xlabel('Time (secs)')
+    plt.ylabel('Direction')
+    for start_time in stim_df['stim_grayScreen.started']:
+        plt.axvline(x=start_time, color='red', linestyle='--', label='stim_grayScreen.started')
+    for start_time in stim_df['stim_grating.started']:
+        plt.axvline(x=start_time, color='green', linestyle='--', label='stim_grating.started')
+
+    # Adjust the layout
+    plt.tight_layout()
+
+    # Show the plots
     plt.show()
 
 def plot_stim_times2(df):

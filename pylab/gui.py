@@ -87,12 +87,17 @@ class MainWindow(QMainWindow):
     def plots(self):
         import pylab.processing.plot as data
         dh_md_df, th_md_df = data.load_metadata(self.cfg_gui.config.bids_dir)
-        data.plot_camera_intervals(dh_md_df, th_md_df)
-        data.plot_wheel_data(data.load_wheel_data(self.cfg_gui.config.bids_dir))
+        data.plot_wheel_data(data.load_wheel_data(self.cfg_gui.config.bids_dir), data.load_psychopy_data(self.cfg_gui.config.bids_dir))
         data.plot_stim_times(data.load_psychopy_data(self.cfg_gui.config.bids_dir))
-
-        #self.cfg_gui.config.meso_file_path
-        
+        data.plot_camera_intervals(dh_md_df, th_md_df)
+    
+    def metrics(self):
+        import pylab.processing.plot as data
+        from pylab.processing.metrics import calculate_metrics
+        wheel_df = data.load_wheel_data(self.cfg_gui.config.bids_dir)
+        stim_df = data.load_psychopy_data(self.cfg_gui.config.bids_dir)
+        metrics_df = calculate_metrics(wheel_df, stim_df)
+        print(metrics_df)   
                 
     def init_console(self):
         """Initialize the IPython console and embed it into the application."""
