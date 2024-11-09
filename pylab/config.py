@@ -32,6 +32,7 @@ class ExperimentConfig:
         self.dhyana_fps: int = 50
         self.thorcam_fps: int = 34
         self.trial_duration: int = 5
+        self.notes: list = []
 
     @property
     def save_dir(self) -> str:
@@ -152,6 +153,17 @@ class ExperimentConfig:
     def psychopy_path(self) -> str:
         return os.path.join(self._save_dir, self.psychopy_filename)
     
+    @property
+    def led_pattern(self) -> list[str]:
+        return self._parameters.get('led_pattern', ['4', '4', '2', '2'])
+    
+    @led_pattern.setter
+    def led_pattern(self, value: list) -> None:
+        if isinstance(value, list):
+            self._parameters['led_pattern'] = [str(item) for item in value]
+        else:
+            raise ValueError("led_pattern must be a list")
+    
     # Helper method to generate a unique file path
     def _generate_unique_file_path(self, file):
         os.makedirs(self.bids_dir, exist_ok=True)
@@ -190,15 +202,27 @@ class ExperimentConfig:
         save_path = os.path.join(self.bids_dir, filename)
 
         properties = [prop for prop in dir(self.__class__) if isinstance(getattr(self.__class__, prop), property)]
-        exclude_properties = {'dataframe', 'pupil_sequence', 'meso_sequence'}
+        exclude_properties = {'dataframe', 'pupil_sequence', 'meso_sequence', 'parameters'}
         parameters = {prop: getattr(self, prop) for prop in properties if prop not in exclude_properties}
         
+        # dump it all to json
         try:
             with open(save_path, 'w') as file:
                 json.dump(parameters, file, indent=4)
             print(f"Parameters saved to {save_path}")
         except Exception as e:
             print(f"Error saving parameters: {e}")
+            
+        # save any notes to a text file    
+        if self.notes:
+            notes_filename = f'{self.subject}_{self.task}_notes.txt'
+            notes_path = os.path.join(self.bids_dir, notes_filename)
+            try:
+                with open(notes_path, 'w') as notes_file:
+                    notes_file.write('\n'.join(self.notes))
+                print(f"Notes saved to {notes_path}")
+            except Exception as e:
+                print(f"Error saving notes: {e}")
             
 
 

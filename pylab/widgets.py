@@ -19,7 +19,8 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QFileDialog,
     QTableWidgetItem,
-    QMessageBox
+    QMessageBox,
+    QInputDialog
 )
 
 from pymmcore_widgets import (
@@ -184,6 +185,19 @@ class ConfigController(QWidget):
         # 4. Record button to start the MDA sequence
         self.record_button = QPushButton('Record')
         self.layout.addWidget(self.record_button)
+        
+        # 5. Test LED button to test the LED pattern
+        self.test_led_button = QPushButton("Test LED")
+        self.layout.addWidget(self.test_led_button)
+        
+        # 6. Stop LED button to stop the LED pattern
+        self.stop_led_button = QPushButton("Stop LED")
+        self.layout.addWidget(self.stop_led_button)
+        
+        # 7. Add Note button to add a note to the configuration
+        self.add_note_button = QPushButton("Add Note")
+        self.layout.addWidget(self.add_note_button)
+
 
         # ------------------------------------------------------------------------------------- #
 
@@ -193,6 +207,9 @@ class ConfigController(QWidget):
         self.json_dropdown.currentIndexChanged.connect(self._update_config)
         self.config_table.cellChanged.connect(self._on_table_edit)
         self.record_button.clicked.connect(self.record)
+        self.test_led_button.clicked.connect(self._test_led)
+        self.stop_led_button.clicked.connect(self._stop_led)
+        self.add_note_button.clicked.connect(self._add_note)
 
         # ------------------------------------------------------------------------------------- #
 
@@ -227,10 +244,16 @@ class ConfigController(QWidget):
             try:
                 self.config.load_parameters(json_path_input)
                 # Refresh the GUI table
+                # FIXME: This implicitly assumes mmc1 is the Dhyana core with the arduino-switch device
                 self._refresh_config_table()
             except Exception as e:
                 print(f"Trouble updating ExperimentConfig from AcquisitionEngine:\n{json_path_input}\nConfiguration not updated.")
                 print(e)
+            # try:
+            #     # Load the LED pattern to the Arduino-Switch device
+            #     self._mmc1.getPropertyObject('Arduino-Switch', 'State').loadSequence(self.config.led_pattern)
+            # except Exception as e:
+            #     print(f'{self.__str__}: LED Pattern not uploaded to Arduino: {e}')    
 
     def _on_table_edit(self, row, column):
         """Update the configuration parameters when the table is edited."""
@@ -260,6 +283,38 @@ class ConfigController(QWidget):
         self.config_table.blockSignals(False)  # Re-enable signals
 
         self.configUpdated.emit(self.config) # EMIT SIGNAL TO LISTENERS
+        
+    def _test_led(self):
+        """
+        Test the LED pattern by sending a test sequence to the Arduino-Switch device.
+        """
+        try:
+            led_pattern = self.config.led_pattern
+            self._mmc1.getPropertyObject('Arduino-Switch', 'State').loadSequence(led_pattern)
+            self._mmc1.getPropertyObject('Arduino-Switch', 'State').setValue(4) # seems essential to initiate serial communication
+            self._mmc1.getPropertyObject('Arduino-Switch', 'State').startSequence()
+            print("LED test pattern sent successfully.")
+        except Exception as e:
+            print(f"Error testing LED pattern: {e}")
+            
+    def _stop_led(self):
+        """
+        Stop the LED pattern by sending a stop sequence to the Arduino-Switch device.
+        """
+        try:
+            self._mmc1.getPropertyObject('Arduino-Switch', 'State').stopSequence()
+            print("LED test pattern stopped successfully.")
+        except Exception as e:
+            print(f"Error stopping LED pattern: {e}")
+            
+    def _add_note(self):
+        """
+        Open a dialog to get a note from the user and save it to the ExperimentConfig.notes list.
+        """
+        text, ok = QInputDialog.getText(self, 'Add Note', 'Enter your note:')
+        if ok and text:
+            self.config.notes.append(text)
+            print("Note added to configuration.")
 
     # ----------------------------------------------------------------------------------------------- #
 

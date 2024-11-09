@@ -89,13 +89,13 @@ class MesoEngine(MDAEngine):
          super().__init__(mmc)
          self._mmc = mmc
          self.use_hardware_sequencing = use_hardware_sequencing
-         self.led_sequence: Sequence[str] = ['4', '4', '2', '2']
+         #self.led_sequence: Sequence[str] = ['4', '4', '2', '2']
     #     self._meso_counter = None
     #     self._meso_metadata = {}
     
     def setup_sequence(self, sequence: useq.MDASequence) -> SummaryMetaV1 | None:
         """Perform setup required before the sequence is executed."""
-        self._mmc.getPropertyObject('Arduino-Switch', 'State').loadSequence(self.led_sequence)
+        #self._mmc.getPropertyObject('Arduino-Switch', 'State').loadSequence(self.led_sequence)
         self._mmc.getPropertyObject('Arduino-Switch', 'State').setValue(4) # seems essential to initiate serial communication
         self._mmc.getPropertyObject('Arduino-Switch', 'State').startSequence()
         logging.info(f'{self.__str__()} setup_sequence loaded LED sequence: {self.led_sequence} at time: {time.time()}')
