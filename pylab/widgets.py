@@ -3,7 +3,7 @@ from pymmcore_plus import CMMCorePlus
 import os
 import subprocess #for PsychoPy Subprocess
 from magicgui import magicgui
-
+import datetime
 from PyQt6.QtCore import pyqtSignal
 
 from PyQt6.QtWidgets import (
@@ -313,7 +313,9 @@ class ConfigController(QWidget):
         """
         text, ok = QInputDialog.getText(self, 'Add Note', 'Enter your note:')
         if ok and text:
-            self.config.notes.append(text)
+            time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            note_with_timestamp = f"{time}: {text}"
+            self.config.notes.append(note_with_timestamp)
             print("Note added to configuration.")
 
     # ----------------------------------------------------------------------------------------------- #
