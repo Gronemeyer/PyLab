@@ -55,16 +55,6 @@ class CustomMDAWidget(MDAWidget):
         # in case the user does not press enter after editing the save name.
         self.save_info.save_name.editingFinished.emit()
 
-        # if autofocus has been requested, but the autofocus device is not engaged,
-        # and position-specific offsets haven't been set, show a warning
-        pos = self.stage_positions
-        if (
-            self.af_axis.value()
-            and not self._mmc.isContinuousFocusLocked()
-            and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
-            and not self._confirm_af_intentions()
-        ):
-            return
 
         sequence = self.value()
 
