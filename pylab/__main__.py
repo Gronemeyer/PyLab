@@ -27,31 +27,20 @@ def cli():
     pass
 
 @cli.command()
-@click.option('--dev', is_flag=True, help='Run in development mode.')
-def launch(dev):
+def launch():
     """
     Launch napari with mesofield acquisition interface widgets
     """
-    if dev:
-        load_dhyana_mmc_params(mmcore_dhyana)
-        load_thorcam_mmc_params(mmcore_thor)
-        mmcore_dhyana.mda.set_engine(MesoEngine(mmcore_dhyana, use_hardware_sequencing=True))
-        mmcore_thor.mda.set_engine(PupilEngine(mmcore_thor, use_hardware_sequencing=True))
-        mmcore_dhyana.run_mda(useq.MDASequence(time_plan={"interval": 0, "loops": 20000}))#, output=r'C:/dev/dh.ome.tif')
-        mmcore_thor.run_mda(useq.MDASequence(time_plan={"interval": 0, "loops": 20000}))#, output=r'C:/dev/thor.ome.tif')
-    else:
-            app = QApplication([])
-            mmcore_dhyana, mmcore_thor = load_cores()
-            load_dhyana_mmc_params(mmcore_dhyana)
-            load_thorcam_mmc_params(mmcore_thor)
-            engine1 = MesoEngine(mmcore_dhyana, True)
-            engine2 = PupilEngine(mmcore_thor, True)
-            mmcore_dhyana.register_mda_engine(engine1)
-            mmcore_thor.register_mda_engine(engine2)
-            cfg = Config
-            mesofield = MainWindow(mmcore_dhyana, mmcore_thor, cfg)
-            mesofield.show()
-            app.exec_()
+
+    app = QApplication([])
+    mmcore_dhyana, mmcore_thor = load_cores()
+    load_dhyana_mmc_params(mmcore_dhyana)
+    load_thorcam_mmc_params(mmcore_thor)
+    mmcore_dhyana.register_mda_engine(MesoEngine(mmcore_dhyana, True))
+    mmcore_thor.register_mda_engine(PupilEngine(mmcore_thor, True))
+    mesofield = MainWindow(mmcore_dhyana, mmcore_thor, Config)
+    mesofield.show()
+    app.exec_()
 
 @cli.command()
 def dev():
