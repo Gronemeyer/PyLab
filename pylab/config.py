@@ -202,7 +202,7 @@ class ExperimentConfig:
         save_path = os.path.join(self.bids_dir, filename)
 
         properties = [prop for prop in dir(self.__class__) if isinstance(getattr(self.__class__, prop), property)]
-        exclude_properties = {'dataframe', 'pupil_sequence', 'meso_sequence', 'parameters'}
+        exclude_properties = {'dataframe', 'pupil_sequence', 'meso_sequence', 'parameters', 'filename', 'json_path', 'save_dir',}
         parameters = {prop: getattr(self, prop) for prop in properties if prop not in exclude_properties}
         
         # dump it all to json
