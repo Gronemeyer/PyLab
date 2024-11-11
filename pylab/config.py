@@ -159,10 +159,15 @@ class ExperimentConfig:
     
     @led_pattern.setter
     def led_pattern(self, value: list) -> None:
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                raise ValueError("led_pattern string must be a valid JSON list")
         if isinstance(value, list):
             self._parameters['led_pattern'] = [str(item) for item in value]
         else:
-            raise ValueError("led_pattern must be a list")
+            raise ValueError("led_pattern must be a list or a JSON string representing a list")
     
     # Helper method to generate a unique file path
     def _generate_unique_file_path(self, file):

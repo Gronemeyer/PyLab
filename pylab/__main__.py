@@ -11,10 +11,10 @@ import numexpr as ne
 import click
 #from pylab.mdacore import *
 from PyQt6.QtWidgets import QApplication
-from pylab.engine import *
-from pylab.gui import MainWindow
+from pylab.engines import DevEngine, MesoEngine, PupilEngine
+from pylab.maingui import MainWindow
 from pylab.config import Config
-from pylab.mdacore import load_dev_cores, load_dhyana_mmc_params, load_thorcam_mmc_params, load_cores
+from pylab.mmcore import load_dev_cores, load_dhyana_mmc_params, load_thorcam_mmc_params, load_cores
 '''
 This is the client terminal command line interface
 
@@ -31,7 +31,8 @@ def launch():
     """
     Launch napari with mesofield acquisition interface widgets
     """
-
+    print('Launching mesofield acquisition interface...')
+    
     app = QApplication([])
     mmcore_dhyana, mmcore_thor = load_cores()
     load_dhyana_mmc_params(mmcore_dhyana)
@@ -64,7 +65,7 @@ def test_mda(frames):
     """
     Start the application.
     """
-    from pylab.mdacore import test_mda
+    from pylab.mmcore import test_mda
     test_mda(frames)
     print('done')
 
