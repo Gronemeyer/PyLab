@@ -5,10 +5,9 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
+from threading import Lock
 
 from typing import Literal
-
-import numpy as np
 
 _DEFAULT_WAIT = 10
 
@@ -35,12 +34,9 @@ class ImagePreview(QWidget):
         running. By default, True.
     """
 
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-        *,
-        mmcore: CMMCorePlus | None = None,
-        use_with_mda: bool = True,
+    def __init__(self, parent: QWidget | None = None, *, 
+                 mmcore: CMMCorePlus | None = None, 
+                 use_with_mda: bool = True,
     ):
         try:
             from vispy import scene
@@ -56,6 +52,8 @@ class ImagePreview(QWidget):
         self._imcls = scene.visuals.Image
         self._clims: tuple[float, float] | Literal["auto"] = "auto"
         self._cmap: str = "grays"
+        self._current_frame = None
+        self._frame_lock = Lock()
 
         self._canvas = scene.SceneCanvas(
             keys="interactive", size=(512, 512), parent=self
@@ -65,17 +63,18 @@ class ImagePreview(QWidget):
 
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self.streaming_timer.setInterval(int(_DEFAULT_WAIT))
+        self.streaming_timer.setInterval(int(25))
         self.streaming_timer.timeout.connect(self._on_streaming_timeout)
 
         ev = self._mmc.events
         ev.imageSnapped.connect(self._on_image_snapped)
         ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
-        #ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
+        ev.sequenceAcquisitionStarted.connect(self._on_streaming_start)
+        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
         ev.exposureChanged.connect(self._on_exposure_changed)
         
         enev = self._mmc.mda.events
-        enev.frameReady.connect(self._update_image)
+        enev.frameReady.connect(self._on_frame_ready)
 
         self.image: scene.visuals.Image | None = None
         self.setLayout(QVBoxLayout())
@@ -100,6 +99,10 @@ class ImagePreview(QWidget):
         """
         self._use_with_mda = use_with_mda
 
+    def _on_frame_ready(self, frame: np.ndarray) -> None:
+        with self._frame_lock:
+            self._current_frame = frame
+
     def _disconnect(self) -> None:
         ev = self._mmc.events
         ev.imageSnapped.disconnect(self._on_image_snapped)
@@ -117,12 +120,18 @@ class ImagePreview(QWidget):
         self.streaming_timer.setInterval(int(value))
 
     def _on_streaming_timeout(self) -> None:
-        with suppress(RuntimeError, IndexError):
-            self._update_image(self._mmc.getLastImage())
+        if not self._mmc.mda.is_running():
+            with suppress(RuntimeError, IndexError):
+                self._update_image(self._mmc.getLastImage())
+        else:
+            with self._frame_lock:
+                if self._current_frame is not None:
+                    self._update_image(self._current_frame)
+                    self._current_frame = None
 
     def _on_image_snapped(self, img: np.ndarray) -> None:
-        if self._mmc.mda.is_running() and not self._use_with_mda:
-            return
+        # if self._mmc.mda.is_running() and not self._use_with_mda:
+        #     return
         self._update_image(img)
 
     def _update_image(self, img: np.ndarray) -> None:
