@@ -1,11 +1,4 @@
-import datetime
-from itertools import count
-from pathlib import Path
-import numpy as np
-import pandas as pd
-
 from pymmcore_plus import CMMCorePlus
-from useq import MDAEvent
 
 # Necessary modules for the IPython console
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
@@ -20,14 +13,20 @@ from qtpy.QtWidgets import (
 
 from pylab.widgets import MDA, ConfigController
 from pylab.config import ExperimentConfig
-
+from pylab.engines import MesoEngine, PupilEngine
 
 class MainWindow(QMainWindow):
     def __init__(self, core_object1: CMMCorePlus, core_object2: CMMCorePlus, cfg: ExperimentConfig):
         super().__init__()
         self.setWindowTitle("Main Widget with Two MDA Widgets")
         self.config: ExperimentConfig = cfg
-
+        self._meso_engine: MesoEngine = MesoEngine(cfg, core_object1, True)
+        self._pupil_engine: PupilEngine = PupilEngine(core_object2, True)
+        
+        # register engines to cores
+        core_object1.register_mda_engine(self._meso_engine)
+        core_object2.register_mda_engine(self._pupil_engine)
+        
         # Create a central widget and set it as the central widget of the QMainWindow
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -47,32 +46,17 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(mda_layout)
         main_layout.addWidget(self.cfg_gui)
         
-        self.init_console()
+        self.init_console(core_object1=core_object1, core_object2=core_object2, cfg=cfg)
         toggle_console_action = self.menuBar().addAction("Toggle Console")
         toggle_console_action.triggered.connect(self.toggle_console)
 
+        self.thor_gui.mmc.mda.events.sequenceFinished.connect(self._on_end)
         self.cfg_gui.configUpdated.connect(self._update_config)
         self.cfg_gui.recordStarted.connect(self.record)
         
     def record(self):
-        self.thor_gui.mda.run_mda()   
         self.dhyana_gui.mda.run_mda()
-         
-    def _update_config(self, config):
-        self.config: ExperimentConfig = config
-        self._refresh_mda_gui()
-        self._refresh_save_gui()
-        
-    def _refresh_mda_gui(self):
-        self.dhyana_gui.mda.setValue(self.config.meso_sequence)
-        self.thor_gui.mda.setValue(self.config.pupil_sequence)
-        
-    def _refresh_save_gui(self):
-        self.dhyana_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir),  'save_name': str(self.config.meso_file_path), 'format': 'ome-tiff', 'should_save': True})
-        self.thor_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir), 'save_name': str(self.config.pupil_file_path), 'format': 'ome-tiff', 'should_save': True})
-        
-    def _on_pause(self, state: bool) -> None:
-        """Called when the MDA is paused."""
+        self.thor_gui.mda.run_mda()   
         
     def toggle_console(self):
         """Show or hide the IPython console."""
@@ -99,7 +83,7 @@ class MainWindow(QMainWindow):
         metrics_df = calculate_metrics(wheel_df, stim_df)
         print(metrics_df)   
                 
-    def init_console(self):
+    def init_console(self, core_object1: CMMCorePlus, core_object2: CMMCorePlus, cfg: ExperimentConfig):
         """Initialize the IPython console and embed it into the application."""
         # Create an in-process kernel
         self.kernel_manager = QtInProcessKernelManager()
@@ -120,9 +104,35 @@ class MainWindow(QMainWindow):
         self.kernel.shell.push({
             'wdgt1': self.dhyana_gui,
             'wdgt2': self.thor_gui,
-            'self': self
+            'self': self,
+            'config': cfg,
+            'meso_core': core_object1,
+            'pupil_core': core_object2,
 
             # Optional, so you can use 'self' directly in the console
         })
 
+    def _on_end(self) -> None:
+        """Called when the MDA is finished."""
+        self.cfg_gui.save_config()
+        self.plots()
 
+    def _update_config(self, config):
+        self.config: ExperimentConfig = config
+        self._refresh_mda_gui()
+        self._refresh_save_gui()
+        self._update_engines()
+        
+    def _refresh_mda_gui(self):
+        self.dhyana_gui.mda.setValue(self.config.meso_sequence)
+        self.thor_gui.mda.setValue(self.config.pupil_sequence)
+        
+    def _refresh_save_gui(self):
+        self.dhyana_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir),  'save_name': str(self.config.meso_file_path), 'format': 'ome-tiff', 'should_save': True})
+        self.thor_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir), 'save_name': str(self.config.pupil_file_path), 'format': 'ome-tiff', 'should_save': True})
+        
+    def _update_engines(self):
+        self._meso_engine.led_sequence = self.config.led_pattern
+        
+    def _on_pause(self, state: bool) -> None:
+        """Called when the MDA is paused."""

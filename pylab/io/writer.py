@@ -90,9 +90,8 @@ class CustomWriter(_5DWriterBase[np.memmap]):
         self, ary: np.memmap, index: tuple[int, ...], frame: np.ndarray
     ) -> None:
         """Write a frame to the file."""
-        super().write_frame(ary, index, frame)
+        ary[index] = frame
         print(f"Writing frame {index} to {ary.filename}")
-        ary.flush()
 
     def new_array(
         self, position_key: str, dtype: np.dtype, sizes: dict[str, int]
@@ -147,7 +146,8 @@ class CustomWriter(_5DWriterBase[np.memmap]):
         # Save to a file
         with open(self._frame_metadata_filename, "w") as file:
             file.write(json_str)
-            
+        
+        
         #self.plot() #TODO plot metadata in dev mode
         
     def plot(self):

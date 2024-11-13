@@ -25,7 +25,7 @@ def load_metadata(directory):
 
     # Parse the directory for files ending with '_frame_metadata.json' and 'pupil_frame_metadata.json'
     for file in os.listdir(directory):
-        if file.endswith('widefield_frame_metadata.jsonf'): #need an 'f' after json???????????????????
+        if file.endswith('meso_frame_metadata.jsonf'): #need an 'f' after json???????????????????
             frame_metadata_path = os.path.join(directory, file)
             frame_metadata_df = load_frame_metadata(frame_metadata_path)
         elif file.endswith('pupil_frame_metadata.jsonf'):
