@@ -3,7 +3,7 @@ import subprocess #for PsychoPy Subprocess
 import datetime
 
 from qtpy.QtCore import Qt
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, QProcess
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -72,6 +72,7 @@ class ConfigController(QWidget):
         self._mmc1 = mmc1
         self._mmc2 = mmc2
         self.config: ExperimentConfig = cfg
+        self.psychopy_process = None
 
         # Create main layout
         self.layout = QVBoxLayout(self)
@@ -170,7 +171,22 @@ class ConfigController(QWidget):
             f'{self.config.num_trials}'
         ]
 
-        subprocess.Popen(args, start_new_session=True)
+        # Create and start the QProcess
+        self.psychopy_process = QProcess(self)
+        self.psychopy_process.finished.connect(self._handle_process_finished)
+        self.psychopy_process.start(args[0], args[1:])
+        self.show_popup()
+
+
+    def _handle_process_finished(self, exit_code, exit_status):
+        from PyQt6.QtCore import QProcess
+
+        """Handle the finished state of the PsychoPy subprocess."""
+        if self.psychopy_process.state() != QProcess.NotRunning:
+            self.psychopy_process.kill()
+            self.psychopy_process = None
+        self.psychopy_process.deleteLater()
+        print(f"PsychoPy process finished with exit code {exit_code} and exit status {exit_status}")
     
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Space:
