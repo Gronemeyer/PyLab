@@ -1,14 +1,26 @@
 from . import *
 import logging
+from pylab.config import ExperimentConfig
 
 class MesoEngine(MDAEngine):
-    def __init__(self, mmc: pymmcore_plus.CMMCorePlus, use_hardware_sequencing: bool = True) -> None:
+    def __init__(self, cfg, mmc: pymmcore_plus.CMMCorePlus, use_hardware_sequencing: bool = True) -> None:
          super().__init__(mmc)
          self._mmc = mmc
          self.use_hardware_sequencing = use_hardware_sequencing
+         self.config: ExperimentConfig = cfg
+        
+    # @property
+    # def led_sequence(self) -> list[str]:
+    #     return self.led_sequence
+    
+    # @led_sequence.setter
+    # def led_sequence(self, sequence: list[str]):
+    #     self.led_sequence = sequence        
+    #     logging.info(f'LED sequence set to: {sequence}')
     
     def setup_sequence(self, sequence: useq.MDASequence) -> SummaryMetaV1 | None:
         """Perform setup required before the sequence is executed."""
+        self._mmc.getPropertyObject('Arduino-Switch', 'State').loadSequence(self.config.led_pattern)
         self._mmc.getPropertyObject('Arduino-Switch', 'State').setValue(4) # seems essential to initiate serial communication
         self._mmc.getPropertyObject('Arduino-Switch', 'State').startSequence()
         logging.info(f'{self.__str__()} setup_sequence loaded LED sequence at time: {time.time()}')
