@@ -37,8 +37,6 @@ def launch():
     mmcore_dhyana, mmcore_thor = load_cores()
     load_dhyana_mmc_params(mmcore_dhyana)
     load_thorcam_mmc_params(mmcore_thor)
-    mmcore_dhyana.register_mda_engine(MesoEngine(mmcore_dhyana, True))
-    mmcore_thor.register_mda_engine(PupilEngine(mmcore_thor, True))
     mesofield = MainWindow(mmcore_dhyana, mmcore_thor, Config)
     mesofield.show()
     app.exec_()
