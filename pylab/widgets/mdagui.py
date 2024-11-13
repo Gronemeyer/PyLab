@@ -67,7 +67,7 @@ class MDA(QWidget):
         # -------------------------------------------------------------------------------------------------------#
         self.setLayout(QHBoxLayout())
 
-        self.preview = ImagePreview(mmcore=self.mmc,parent=self.mda)
+        self.preview = ImagePreview(mmcores=[self.mmc],parent=self.mda)
         self.snap_button = SnapButton(mmcore=self.mmc)
         self.live_button = LiveButton(mmcore=self.mmc)
         self.exposure = ExposureWidget(mmcore=self.mmc)
