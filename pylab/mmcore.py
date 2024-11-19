@@ -1,105 +1,16 @@
-<<<<<<< HEAD
-import pymmcore_plus
-
-import logging
-=======
 from pymmcore_plus import CMMCorePlus
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
 
 import useq
 import logging
 
-<<<<<<< HEAD
-=======
 from pylab.engines import DevEngine, MesoEngine, PupilEngine
 
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
 # Disable pymmcore-plus logger
 package_logger = logging.getLogger('pymmcore-plus')
 
 # Set the logging level to CRITICAL to suppress lower-level logs
 package_logger.setLevel(logging.CRITICAL)
 
-<<<<<<< HEAD
-DHYANA_CONFIG = r'C:/Program Files/Micro-Manager-2.0/mm-sipefield.cfg'
-THOR_CONFIG = r'C:/Program Files/Micro-Manager-2.0/ThorCam.cfg'
-
-def load_cores():
-    mmcore_dhyana: pymmcore_plus.CMMCorePlus = pymmcore_plus.CMMCorePlus(mm_path=r'C:\Program Files\Micro-Manager-2.0')
-    mmcore_thor: pymmcore_plus.CMMCorePlus = pymmcore_plus.CMMCorePlus(mm_path=r'C:\Program Files\Micro-Manager-thor')
-
-    mmcore_dhyana.loadSystemConfiguration(DHYANA_CONFIG)
-    mmcore_thor.loadSystemConfiguration(THOR_CONFIG)
-
-    mmcore_dhyana.setCircularBufferMemoryFootprint(10000)
-    mmcore_thor.setCircularBufferMemoryFootprint(10000)
-
-    logging.info(f"Cores {mmcore_dhyana} and {mmcore_thor} initialized successfully with {mmcore_dhyana.getCircularBufferMemoryFootprint()} and {mmcore_thor.getCircularBufferMemoryFootprint()} memory footprint")   
-    return mmcore_dhyana, mmcore_thor
-
-def test_mda(frames: int = 20000):    
-    #from pymmcore_plus.mda.handlers import OMETiffWriter, ImageSequenceWriter
-    from pylab.engines import MesoEngine, PupilEngine
-    from pylab.io import CustomWriter
-    
-    mmcore_dhyana, mmcore_thor = load_cores()
-    
-    load_dhyana_mmc_params(mmcore_dhyana)
-    load_thorcam_mmc_params(mmcore_thor)
-    
-    mmcore_dhyana.mda.set_engine(MesoEngine(mmcore_dhyana, use_hardware_sequencing=True)) 
-    mmcore_thor.mda.set_engine(PupilEngine(mmcore_thor, use_hardware_sequencing=True))
-    
-    print('running MDA test...')
-    mmcore_dhyana.run_mda(useq.MDASequence(time_plan={"interval": 0, "loops": frames}), output=CustomWriter(r'C:/dev/dh.ome.tif'))
-    mmcore_thor.run_mda(useq.MDASequence(time_plan={"interval": 0, "loops": frames}), output=CustomWriter(r'C:/dev/thor.ome.tif'))
-    print('threads launched')
-
-def load_thorcam_mmc_params(mmcore):
-    ''' Load ThorCam MicroManager configuration:
-        - loadSystemConfiguration from pylab.mdacore.THOR_CONFIG
-        - setROI to 440, 305, 509, 509
-        - setExposure to 20
-        - use_hardware_sequencing to True
-    '''
-    
-    mmcore.setROI("ThorCam", 440, 305, 509, 509)
-    mmcore.setExposure(20)
-    mmcore.mda.engine.use_hardware_sequencing = True
-    logging.info(f"{mmcore} ThorCam parameters loaded by {load_thorcam_mmc_params.__name__}")
-
-def load_dhyana_mmc_params(mmcore):
-    '''Load Dhyana MicroManager configuration:
-        - loadSystemConfiguration from pylab.mdacore.DHYANA_CONFIG
-        - setProperty 'Arduino-Switch', 'Sequence', 'On'
-        - setChannelGroup 'Channel'
-        - setProperty 'Arduino-Shutter', 'OnOff', '1'
-        - setProperty 'Dhyana', 'Output Trigger Port', '2'
-        - setProperty 'Core', 'Shutter', 'Arduino-Shutter'
-        - setProperty 'Dhyana', 'Gain', 'HDR'
-        - setChannelGroup 'Channel'
-    '''
-    
-    print("Loading Dhyana MicroManager configuration...")
-    mmcore.setProperty('Arduino-Switch', 'Sequence', 'On')
-    mmcore.setProperty('Arduino-Shutter', 'OnOff', '1')
-    mmcore.setProperty('Dhyana', 'Output Trigger Port', '2')
-    mmcore.setProperty('Core', 'Shutter', 'Arduino-Shutter')
-    mmcore.setProperty('Dhyana', 'Gain', 'HDR')
-    mmcore.setChannelGroup('Channel')
-    mmcore.mda.engine.use_hardware_sequencing = True
-    logging.info(f"{mmcore} Dhyana parameters loaded by {load_dhyana_mmc_params.__name__}")
-    
-def load_dev_cores() -> pymmcore_plus.CMMCorePlus:
-    core1 = pymmcore_plus.CMMCorePlus()
-    core2 = pymmcore_plus.CMMCorePlus()
-    core1.loadSystemConfiguration()
-    core2.loadSystemConfiguration()
-    return core1, core2
-    
-# if __name__ == '__main__':
-#     test_mda(100)
-=======
 
 class MMConfigurator:
     '''MicroManager configuration class.
@@ -163,6 +74,10 @@ class MMConfigurator:
 
         self.mmcore1: CMMCorePlus = None
         self.mmcore2: CMMCorePlus = None
+        
+        self.meso_engine: MesoEngine = None
+        self.pupil_engine: PupilEngine = None
+        self.dev_engine: DevEngine = None
 
         self.mm1_path: str = parameters.get('mmc1_path', 'C:/Program Files/Micro-Manager-2.0gamma')
         self.mm2_path: str = parameters.get('mmc2_path', 'C:/Program Files/Micro-Manager-thor')
@@ -184,9 +99,9 @@ class MMConfigurator:
             self.mmcore2 = CMMCorePlus(self.mm2_path)
 
             if self.mmc1_configuration_path:
-                self.mmcore1.loadSystemConfiguration(self.mmc1_configuration_path)
+                self.load_dhyana_mmc_params(self.mmcore1, self.mmc1_configuration_path)
             if self.mmc2_configuration_path:
-                self.mmcore2.loadSystemConfiguration(self.mmc2_configuration_path)
+                self.load_thorcam_mmc_params(self.mmcore2, self.mmc2_configuration_path)
 
             self.mmcore1.setCircularBufferMemoryFootprint(self.memory_buffer_size)
             self.mmcore2.setCircularBufferMemoryFootprint(self.memory_buffer_size)
@@ -201,18 +116,17 @@ class MMConfigurator:
 
         return self.mmcore1, self.mmcore2
 
-    def register_engines(self):
+    def register_engines(self) -> None:
         '''Register the Custom Pymmcore-Plus MDAEngines to the Cores.'''
 
-        if self.development_mode:
-            self.mmcore1.register_mda_engine(DevEngine(self.mmcore1, use_hardware_sequencing=True))
-            self.mmcore2.register_mda_engine(DevEngine(self.mmcore2, use_hardware_sequencing=True))
-            logging.info("Development Engines registered to cores")
+        self.meso_engine = MesoEngine(self.mmcore1, use_hardware_sequencing=True)
+        self.pupil_engine = PupilEngine(self.mmcore2, use_hardware_sequencing=True) 
+        self.dev_engine = DevEngine(self.mmcore1, use_hardware_sequencing=True)
 
-        else:
-            self.mmcore1.register_mda_engine(MesoEngine(self.mmcore1, use_hardware_sequencing=True))
-            self.mmcore2.register_mda_engine(PupilEngine(self.mmcore2, use_hardware_sequencing=True))
-            logging.info("Engines registered to cores")
+        self.mmcore1.register_mda_engine(self.meso_engine)
+        logging.info(f"MMConfigurator: {self.meso_engine} registered to {self.mmcore1}")       
+        self.mmcore2.register_mda_engine(self.pupil_engine)
+        logging.info(f"MMConfigurator: {self.pupil_engine} registered to {self.mmcore2}")
 
     def test_mda(self, frames: int = 20000):    
         from pylab.engines import MesoEngine, PupilEngine
@@ -237,24 +151,29 @@ class MMConfigurator:
         )
         print('Threads launched')
 
-    def load_thorcam_mmc_params(self, mmcore):
+    @staticmethod
+    def load_thorcam_mmc_params(mmcore, config_path):
         """Load ThorCam MicroManager configuration."""
+        print(f"Loading ThorCam MicroManager {mmcore} configuration {config_path}...")
+        mmcore.loadSystemConfiguration(config_path)
         mmcore.setROI("ThorCam", 440, 305, 509, 509)
         mmcore.setExposure(20)
         mmcore.mda.engine.use_hardware_sequencing = True
-        logging.info(f"{mmcore} ThorCam parameters loaded by {self.load_thorcam_mmc_params.__name__}")
+        logging.info(f"{mmcore} ThorCam parameters loaded with configuration file {config_path}")
 
-    def load_dhyana_mmc_params(self, mmcore):
+    @staticmethod
+    def load_dhyana_mmc_params(mmcore, config_path):
         """Load Dhyana MicroManager configuration."""
-        print("Loading Dhyana MicroManager configuration...")
+        print(f"Loading Dhyana MicroManager {mmcore} configuration {config_path}...")
+        mmcore.loadSystemConfiguration(config_path)
         mmcore.setProperty('Arduino-Switch', 'Sequence', 'On')
         mmcore.setProperty('Arduino-Shutter', 'OnOff', '1')
         mmcore.setProperty('Dhyana', 'Output Trigger Port', '2')
         mmcore.setProperty('Core', 'Shutter', 'Arduino-Shutter')
-        mmcore.setProperty('Dhyana', 'Gain', 'HDR')
+        #mmcore.setProperty('Dhyana', 'Gain', 'HDR')
         mmcore.setChannelGroup('Channel')
         mmcore.mda.engine.use_hardware_sequencing = True
-        logging.info(f"{mmcore} Dhyana parameters loaded by {self.load_dhyana_mmc_params.__name__}")
+        logging.info(f"{mmcore} Dhyana parameters loaded with configuration file {config_path}")
         
     @staticmethod
     def load_dev_cores():
@@ -265,4 +184,3 @@ class MMConfigurator:
         logging.info("Development Cores loaded")
         return core1, core2
 
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6

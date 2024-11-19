@@ -24,10 +24,6 @@ class CustomMDAWidget(MDAWidget):
         # in case the user does not press enter after editing the save name.
         self.save_info.save_name.editingFinished.emit()
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         sequence = self.value()
 
         # technically, this is in the metadata as well, but isChecked is more direct
@@ -42,12 +38,7 @@ class CustomMDAWidget(MDAWidget):
         self._mmc.run_mda(sequence, output=CustomWriter(save_path))
 
 class MDA(QWidget):
-<<<<<<< HEAD
-    """An example of using the MDAWidget to create and acquire a useq.MDASequence.
-
-=======
     """
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
     The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
     This object describes a full multi-dimensional acquisition;
     In this example, we set the `MDAWidget` parameter `include_run_button` to `True`,
@@ -60,18 +51,6 @@ class MDA(QWidget):
 
     """
 
-<<<<<<< HEAD
-    def __init__(self, core_object: CMMCorePlus, cfg) -> None:
-        super().__init__()
-        # get the CMMCore instance and load the default config
-        self.mmc = core_object
-        self.config: ExperimentConfig = cfg
-
-        # instantiate the MDAWidget
-        self.mda = CustomMDAWidget(mmcore=self.mmc)
-        # ----------------------------------Auto-set MDASequence and save_info----------------------------------#
-        self.mda.setValue(self.config.pupil_sequence)
-=======
     def __init__(self, config: ExperimentConfig) -> None:
         """
 
@@ -114,32 +93,14 @@ class MDA(QWidget):
         self.mda = CustomMDAWidget(mmcore=self.mmcores[0])
         # ----------------------------------Auto-set MDASequence and save_info----------------------------------#
         self.mda.setValue(config.pupil_sequence)
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         self.mda.save_info.setValue({'save_dir': r'C:/dev', 'save_name': 'file', 'format': 'ome-tiff', 'should_save': True})
         # -------------------------------------------------------------------------------------------------------#
         self.setLayout(QHBoxLayout())
 
-<<<<<<< HEAD
-        self.preview = ImagePreview(mmcore=self.mmc,parent=self.mda)
-        self.snap_button = SnapButton(mmcore=self.mmc)
-        self.live_button = LiveButton(mmcore=self.mmc)
-        self.exposure = ExposureWidget(mmcore=self.mmc)
-
-=======
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         live_viewer = QGroupBox()
         live_viewer.setLayout(QVBoxLayout())
         buttons = QGroupBox()
         buttons.setLayout(QHBoxLayout())
-<<<<<<< HEAD
-        buttons.layout().addWidget(self.snap_button)
-        buttons.layout().addWidget(self.live_button)
-        live_viewer.layout().addWidget(buttons)
-        live_viewer.layout().addWidget(self.preview)
-
-        self.layout().addWidget(self.mda)
-        self.layout().addWidget(live_viewer)
-=======
 
         if len(self.mmcores) == 1:
             '''Single Core Layout'''
@@ -197,5 +158,4 @@ class MDA(QWidget):
 
             self.layout().addWidget(self.mda)
             self.layout().addWidget(cores_groupbox)
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         

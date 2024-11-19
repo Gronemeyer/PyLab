@@ -233,8 +233,8 @@ class ImagePreview(QWidget):
     def _on_image_snapped(self, img: np.ndarray) -> None:
         self._update_image(img)
 
-    def _on_frame_ready(self, event) -> None:
-        frame = event.image  # Adjust based on actual event attributes
+    def _on_frame_ready(self, img: np.ndarray) -> None:
+        frame = img 
         with self._frame_lock:
             self._current_frame = frame
 

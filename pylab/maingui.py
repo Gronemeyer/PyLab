@@ -35,15 +35,6 @@ class MainWindow(QMainWindow):
         mda_layout = QVBoxLayout()
         self.setCentralWidget(central_widget)
 
-<<<<<<< HEAD
-        self.thor_gui.mmc.mda.events.sequenceFinished.connect(self._on_end)
-        self.cfg_gui.configUpdated.connect(self._update_config)
-        self.cfg_gui.recordStarted.connect(self.record)
-        
-    def record(self):
-        self.dhyana_gui.mda.run_mda()
-        self.thor_gui.mda.run_mda()   
-=======
         mda_layout.addWidget(self.acquisition_gui)
         main_layout.addLayout(mda_layout)
         main_layout.addWidget(self.config_controller)
@@ -60,7 +51,6 @@ class MainWindow(QMainWindow):
     #============================== Methods =================================#    
     def record(self):
         print('recording')
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         
     def toggle_console(self):
         """Show or hide the IPython console."""
@@ -113,16 +103,10 @@ class MainWindow(QMainWindow):
         })
     #----------------------------------------------------------------------------#
 
-<<<<<<< HEAD
-    def _on_end(self) -> None:
-        """Called when the MDA is finished."""
-        self.cfg_gui.save_config()
-=======
     #============================== Private Methods =============================#
     def _on_end(self) -> None:
         """Called when the MDA is finished."""
         self.config_controller.save_config()
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         self.plots()
 
     def _update_config(self, config):
@@ -131,20 +115,10 @@ class MainWindow(QMainWindow):
         self._refresh_save_gui()
         
     def _refresh_mda_gui(self):
-<<<<<<< HEAD
-        self.dhyana_gui.mda.setValue(self.config.meso_sequence)
-        self.thor_gui.mda.setValue(self.config.pupil_sequence)
-        
-    def _refresh_save_gui(self):
-        self.dhyana_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir),  'save_name': str(self.config.meso_file_path), 'format': 'ome-tiff', 'should_save': True})
-        self.thor_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir), 'save_name': str(self.config.pupil_file_path), 'format': 'ome-tiff', 'should_save': True})
-        
-=======
         self.acquisition_gui.mda.setValue(self.config.meso_sequence)
         
     def _refresh_save_gui(self):
         self.acquisition_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir),  'save_name': str(self.config.meso_file_path), 'format': 'ome-tiff', 'should_save': True})
                 
->>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
     def _on_pause(self, state: bool) -> None:
         """Called when the MDA is paused."""
