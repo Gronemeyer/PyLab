@@ -11,39 +11,31 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
 )
 
-from pylab.widgets import MDA, ConfigController
+from pylab.widgets import MDA, ConfigController, EncoderWidget
 from pylab.config import ExperimentConfig
 
-
 class MainWindow(QMainWindow):
-    def __init__(self, core_object1: CMMCorePlus, core_object2: CMMCorePlus, cfg: ExperimentConfig):
+    def __init__(self, cfg: ExperimentConfig):
         super().__init__()
         self.setWindowTitle("Main Widget with Two MDA Widgets")
         self.config: ExperimentConfig = cfg
 
-        # Create a central widget and set it as the central widget of the QMainWindow
+        #============================== Widgets =============================#
+        self.acquisition_gui = MDA(self.config)
+        self.config_controller = ConfigController(self.config)
+        self.encoder_widget = EncoderWidget(self.config)
+        self.initialize_console(cfg) # Initialize the IPython console
+        #--------------------------------------------------------------------#
+
+        #============================== Layout ==============================#
+        toggle_console_action = self.menuBar().addAction("Toggle Console")
+
         central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        
-        # Set layout for the central widget
         main_layout = QHBoxLayout(central_widget)
         mda_layout = QVBoxLayout()
-        
-        # Create two instances of MDA widget
-        self.dhyana_gui = MDA(core_object1, cfg)
-        self.thor_gui = MDA(core_object2, cfg)
-        self.cfg_gui = ConfigController(core_object1, core_object2, cfg)
-        
-        # Add MDA widgets to the layout
-        mda_layout.addWidget(self.dhyana_gui)
-        mda_layout.addWidget(self.thor_gui)
-        main_layout.addLayout(mda_layout)
-        main_layout.addWidget(self.cfg_gui)
-        
-        self.init_console()
-        toggle_console_action = self.menuBar().addAction("Toggle Console")
-        toggle_console_action.triggered.connect(self.toggle_console)
+        self.setCentralWidget(central_widget)
 
+<<<<<<< HEAD
         self.thor_gui.mmc.mda.events.sequenceFinished.connect(self._on_end)
         self.cfg_gui.configUpdated.connect(self._update_config)
         self.cfg_gui.recordStarted.connect(self.record)
@@ -51,6 +43,24 @@ class MainWindow(QMainWindow):
     def record(self):
         self.dhyana_gui.mda.run_mda()
         self.thor_gui.mda.run_mda()   
+=======
+        mda_layout.addWidget(self.acquisition_gui)
+        main_layout.addLayout(mda_layout)
+        main_layout.addWidget(self.config_controller)
+        mda_layout.addWidget(self.encoder_widget)
+        #--------------------------------------------------------------------#
+
+        #============================== Signals =============================#
+        toggle_console_action.triggered.connect(self.toggle_console)
+        self.config_controller.configUpdated.connect(self._update_config)
+        self.config_controller.recordStarted.connect(self.record)
+        #--------------------------------------------------------------------#
+
+
+    #============================== Methods =================================#    
+    def record(self):
+        print('recording')
+>>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         
     def toggle_console(self):
         """Show or hide the IPython console."""
@@ -58,26 +68,26 @@ class MainWindow(QMainWindow):
             self.console_widget.hide()
         else:
             if not self.console_widget:
-                self.init_console()
+                self.initialize_console()
             else:
                 self.console_widget.show()
     
     def plots(self):
         import pylab.processing.plot as data
-        dh_md_df, th_md_df = data.load_metadata(self.cfg_gui.config.bids_dir)
-        data.plot_wheel_data(data.load_wheel_data(self.cfg_gui.config.bids_dir), data.load_psychopy_data(self.cfg_gui.config.bids_dir))
-        data.plot_stim_times(data.load_psychopy_data(self.cfg_gui.config.bids_dir))
+        dh_md_df, th_md_df = data.load_metadata(self.config_controller.config.bids_dir)
+        data.plot_wheel_data(data.load_wheel_data(self.config_controller.config.bids_dir), data.load_psychopy_data(self.config_controller.config.bids_dir))
+        data.plot_stim_times(data.load_psychopy_data(self.config_controller.config.bids_dir))
         data.plot_camera_intervals(dh_md_df, th_md_df)
     
     def metrics(self):
         import pylab.processing.plot as data
         from pylab.processing.metrics import calculate_metrics
-        wheel_df = data.load_wheel_data(self.cfg_gui.config.bids_dir)
-        stim_df = data.load_psychopy_data(self.cfg_gui.config.bids_dir)
+        wheel_df = data.load_wheel_data(self.config_controller.config.bids_dir)
+        stim_df = data.load_psychopy_data(self.config_controller.config.bids_dir)
         metrics_df = calculate_metrics(wheel_df, stim_df)
         print(metrics_df)   
                 
-    def init_console(self):
+    def initialize_console(self, cfg: ExperimentConfig):
         """Initialize the IPython console and embed it into the application."""
         # Create an in-process kernel
         self.kernel_manager = QtInProcessKernelManager()
@@ -96,16 +106,23 @@ class MainWindow(QMainWindow):
 
         # Expose variables to the console's namespace
         self.kernel.shell.push({
-            'wdgt1': self.dhyana_gui,
-            'wdgt2': self.thor_gui,
-            'self': self
-
+            'mda': self.acquisition_gui.mda,
+            'self': self,
+            'config': cfg,
             # Optional, so you can use 'self' directly in the console
         })
+    #----------------------------------------------------------------------------#
 
+<<<<<<< HEAD
     def _on_end(self) -> None:
         """Called when the MDA is finished."""
         self.cfg_gui.save_config()
+=======
+    #============================== Private Methods =============================#
+    def _on_end(self) -> None:
+        """Called when the MDA is finished."""
+        self.config_controller.save_config()
+>>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
         self.plots()
 
     def _update_config(self, config):
@@ -114,6 +131,7 @@ class MainWindow(QMainWindow):
         self._refresh_save_gui()
         
     def _refresh_mda_gui(self):
+<<<<<<< HEAD
         self.dhyana_gui.mda.setValue(self.config.meso_sequence)
         self.thor_gui.mda.setValue(self.config.pupil_sequence)
         
@@ -121,5 +139,12 @@ class MainWindow(QMainWindow):
         self.dhyana_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir),  'save_name': str(self.config.meso_file_path), 'format': 'ome-tiff', 'should_save': True})
         self.thor_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir), 'save_name': str(self.config.pupil_file_path), 'format': 'ome-tiff', 'should_save': True})
         
+=======
+        self.acquisition_gui.mda.setValue(self.config.meso_sequence)
+        
+    def _refresh_save_gui(self):
+        self.acquisition_gui.mda.save_info.setValue({'save_dir': str(self.config.bids_dir),  'save_name': str(self.config.meso_file_path), 'format': 'ome-tiff', 'should_save': True})
+                
+>>>>>>> 7cc5bd730068db5f5d36d9144f98e318f617e1b6
     def _on_pause(self, state: bool) -> None:
         """Called when the MDA is paused."""
