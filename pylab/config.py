@@ -5,7 +5,11 @@ import pandas as pd
 import os
 import useq
 import warnings
+from pymmcore_plus import CMMCorePlus
 
+import logging
+
+from pylab.mmcore import MMConfigurator
 
 class ExperimentConfig:
     """## Generate and store parameters loaded from a JSON file. 
@@ -23,16 +27,23 @@ class ExperimentConfig:
         ```
     """
 
-    def __init__(self):
+    def __init__(self, mmconfig: MMConfigurator):
         self._parameters = {}
         self._json_file_path = ''
         self._output_path = ''
         self._save_dir = ''
         
-        self.dhyana_fps: int = 50
-        self.thorcam_fps: int = 34
+        self.dhyana_fps: int = mmconfig.dhyana_fps
+        self.thorcam_fps: int = mmconfig.thorcam_fps 
         self.trial_duration: int = 5
         self.notes: list = []
+
+        self.meso_core, self.pupil_core = mmconfig.load_cores() if mmconfig else (None, None)
+    
+    @property
+    def _cores(self) -> tuple[CMMCorePlus, CMMCorePlus]:
+        '''Return the two CMMCorePlus instances'''
+        return self.meso_core, self.pupil_core
 
     @property
     def save_dir(self) -> str:
@@ -230,5 +241,3 @@ class ExperimentConfig:
                 print(f"Error saving notes: {e}")
             
 
-
-Config = ExperimentConfig()
