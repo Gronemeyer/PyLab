@@ -1,33 +1,29 @@
 from contextlib import suppress
-from typing import List, Tuple, Union, Literal
+from typing import Tuple, Union, Literal
 import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtGui import QImage, QPixmap
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QWidget
 from threading import Lock
-from functools import partial
 
 class ImagePreview(QWidget):
     """
-    A PyQt widget that displays images from one or two `CMMCorePlus` instances (mmc cores).
+    A PyQt widget that displays images from a `CMMCorePlus` instance (mmcore).
 
-    This widget is designed to display images from one or two `CMMCorePlus` instances
-    simultaneously, updating the display in real-time as new images are captured from
-    each core. The widget adapts dynamically based on the number of cores provided,
-    displaying a single image when one core is given or multiple images when more cores
-    are provided.
+    This widget displays images from a single `CMMCorePlus` instance,
+    updating the display in real-time as new images are captured.
 
-    The images are displayed using PyQt's `QLabel` and `QPixmap`, allowing for efficient
+    The image is displayed using PyQt's `QLabel` and `QPixmap`, allowing for efficient
     rendering without external dependencies like VisPy.
 
     **Parameters**
     ----------
     parent : QWidget, optional
         The parent widget. Defaults to `None`.
-    mmcores : List[CMMCorePlus]
-        A list containing one or two `CMMCorePlus` instances from which images will be displayed.
-        Each `CMMCorePlus` instance represents a separate microscope control core.
+    mmcore : CMMCorePlus
+        The `CMMCorePlus` instance from which images will be displayed.
+        Represents the microscope control core.
     use_with_mda : bool, optional
         If `True`, the widget will update during Multi-Dimensional Acquisitions (MDA).
         If `False`, the widget will not update during MDA. Defaults to `True`.
@@ -42,116 +38,132 @@ class ImagePreview(QWidget):
 
     **Notes**
     -----
-    - The widget adapts to the number of mmc cores provided:
-        - If one core is provided, it displays a single image centered in the widget.
-        - If two cores are provided, it displays the images side by side.
+    - **Image Display**: Uses a `QLabel` widget to display the image.
+      The image is set to scale to fit the label size (`setScaledContents(True)`).
 
-    - Uses `QLabel` widgets to display images. Each image is displayed
-      in a separate label. Labels are set to scale images to fit their size
-      (`setScaledContents(True)`).
-
-    - Converts images from the `CMMCorePlus` instances to `uint8`
+    - **Image Conversion**: Converts images from the `CMMCorePlus` instance to `uint8`
       and scales them appropriately for display using `QImage` and `QPixmap`.
 
-    - Connects to events emitted by each `CMMCorePlus` instance:
-        - `imageSnapped`: Emitted when a new image is snapped from a Core.
+    - **Event Handling**: Connects to various events emitted by the `CMMCorePlus` instance:
+        - `imageSnapped`: Emitted when a new image is snapped.
         - `continuousSequenceAcquisitionStarted` and `sequenceAcquisitionStarted`: Emitted when
-          a Core sequence acquisition starts.
-        - `sequenceAcquisitionStopped`: Emitted when a Core sequence acquisition stops.
-        - `exposureChanged`: Emitted when a Core camera exposure time changes.
+          a sequence acquisition starts.
+        - `sequenceAcquisitionStopped`: Emitted when a sequence acquisition stops.
+        - `exposureChanged`: Emitted when the exposure time changes.
         - `frameReady` (MDA): Emitted when a new frame is ready during MDA.
 
-    - Uses threading (`Lock`) to ensure thread-safe movement of frames for display. 
-      UI updates are performed in the main thread using Qt's signals and slots mechanism, 
-      ensuring thread safety.
+    - **Thread Safety**: Uses a threading lock (`Lock`) to ensure thread-safe access to
+      shared resources, such as the current frame. UI updates are performed in the main
+      thread using Qt's signals and slots mechanism, ensuring thread safety.
 
-    - Adjustable contrast limits (`clims`) and colormap (`cmap`) for the images. 
-      By default, only grayscale images are supported.
+    - **Timer for Updates**: A `QTimer` is used to periodically update the image
+      from the core. The timer interval can be adjusted based on the exposure time,
+      ensuring that updates occur at appropriate intervals.
+
+    - **Contrast Limits and Colormap**: Allows setting contrast limits (`clims`) and
+      colormap (`cmap`) for the image. Currently, only grayscale images are supported.
+      The `clims` can be set to a tuple `(min, max)` or `"auto"` for automatic adjustment.
+
+    - **Usage with MDA**: The `use_with_mda` parameter determines whether the widget updates
+      during Multi-Dimensional Acquisitions. If set to `False`, the widget will not update
+      during MDA runs.
+
+    **Examples**
+    --------
+    ```python
+    from pymmcore_plus import CMMCorePlus
+    from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
+
+    # Initialize a CMMCorePlus instance
+    mmc = CMMCorePlus()
+
+    # Set up the application and main window
+    app = QApplication([])
+    window = QWidget()
+    layout = QVBoxLayout(window)
+
+    # Create the ImagePreview widget
+    image_preview = ImagePreview(mmcore=mmc)
+
+    # Add the widget to the layout
+    layout.addWidget(image_preview)
+    window.show()
+
+    # Start the Qt event loop
+    app.exec()
+    ```
+
+    **Methods**
+    -------
+    - `clims`: Property to get or set the contrast limits of the image.
+    - `cmap`: Property to get or set the colormap of the image.
+
+    **Initialization Parameters**
+    ----------
+    parent : QWidget, optional
+        The parent widget for this widget.
+    mmcore : CMMCorePlus
+        The `CMMCorePlus` instance to be used for image acquisition.
+    use_with_mda : bool, optional
+        Flag to determine if the widget should update during MDA sequences.
+
+    **Raises**
+    ------
+    ValueError
+        If `mmcore` is not provided.
 
     **Private Methods**
     ----------------
-    internal functionality:
+    These methods handle internal functionality:
 
-    - `_disconnect()`: Disconnects all connected signals from the `CMMCorePlus` instances.
-    - `_on_streaming_start(idx)`: Starts the streaming timer when a sequence acquisition starts.
-    - `_on_streaming_stop(idx)`: Stops the streaming timer when all sequence acquisitions stop.
-    - `_on_exposure_changed(idx, device, value)`: Adjusts the timer interval when the exposure changes.
+    - `_disconnect()`: Disconnects all connected signals from the `CMMCorePlus` instance.
+    - `_on_streaming_start()`: Starts the streaming timer when a sequence acquisition starts.
+    - `_on_streaming_stop()`: Stops the streaming timer when the sequence acquisition stops.
+    - `_on_exposure_changed(device, value)`: Adjusts the timer interval when the exposure changes.
     - `_on_streaming_timeout()`: Called periodically by the timer to fetch and display new images.
-    - `_on_image_snapped(idx, img)`: Handles new images snapped outside of sequences.
-    - `_on_frame_ready(idx, event)`: Handles new frames ready during MDA.
-    - `_update_images(frames)`: Updates the display with new images from all cores.
-    - `_display_image(idx, img)`: Converts and displays a single image in the corresponding label.
-    - `_update_image(idx, img)`: Stores a new image for later display.
+    - `_on_image_snapped(img)`: Handles new images snapped outside of sequences.
+    - `_on_frame_ready(event)`: Handles new frames ready during MDA.
+    - `_display_image(img)`: Converts and displays the image in the label.
     - `_adjust_image_data(img)`: Scales image data to `uint8` for display.
     - `_convert_to_qimage(img)`: Converts a NumPy array to a `QImage` for display.
 
-
-    **Examples with Single and Multiple Cores**
-    ------------------------------------
-    **With One Core**:
-    ```python
-    mmc = CMMCorePlus()
-    image_preview = ImagePreview(mmcores=[mmc])
-    ```
-
-    **With Two Cores**:
-    ```python
-    mmc1 = CMMCorePlus()
-    mmc2 = CMMCorePlus()
-    image_preview = ImagePreview(mmcores=[mmc1, mmc2])
-    ```
-
-    **Handling Image Contrast and Colormap**
-    -------------------------------------
-    You can set the contrast limits and colormap as follows:
-    ```python
-    image_preview.clims = (100, 1000)  # Set contrast limits
-    image_preview.cmap = "grayscale"   # Set colormap
-    ```
-
-    **Extending to More Cores**
-    -----------------------
-    While currently designed for up to two cores, the widget can be extended to handle more cores by adjusting the initialization and layout logic.
-
-    **Error Handling**
-    ---------------
-    The widget raises a `ValueError` if more than two cores are provided or if the `mmcores` list is empty.
+    **Usage Notes**
+    ------------
+    - **Initialization**: Provide an initialized and configured `CMMCorePlus` instance.
+    - **Thread Safety**: UI updates are performed in the main thread. Ensure that heavy computations are offloaded to avoid blocking the UI.
+    - **Customization**: You can adjust the `clims` and `cmap` properties to customize the image display.
 
     **Performance Considerations**
     --------------------------
-    - **Frame Rate**: The default timer interval is set to 10 milliseconds. Adjust the interval for performance.
+    - **Frame Rate**: The default timer interval is set to 10 milliseconds. Adjust the interval based on your performance needs.
     - **Resource Management**: Disconnect signals properly by ensuring the `_disconnect()` method is called when the widget is destroyed.
 
     """
 
     def __init__(self, parent: QWidget = None, *, 
-                 mmcores: List[CMMCorePlus], 
+                 mmcore: CMMCorePlus, 
                  use_with_mda: bool = True):
         super().__init__(parent=parent)
-        if not mmcores or len(mmcores) > 2:
-            raise ValueError("Provide one or two mmc cores.")
-        self._mmcores = mmcores  # List of mmc cores
+        if mmcore is None:
+            raise ValueError("A CMMCorePlus instance must be provided.")
+        self._mmcore = mmcore
         self._use_with_mda = use_with_mda
-        self._num_cores = len(mmcores)
         self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
         self._cmap: str = "grayscale"
-        self._current_frames = [None] * self._num_cores
-        self._frame_locks = [Lock() for _ in range(self._num_cores)]
+        self._current_frame = None
+        self._frame_lock = Lock()
 
-        # Set up image labels
-        self.image_labels = []
-        for _ in range(self._num_cores):
-            label = QLabel()
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setMinimumSize(512, 512)
-            label.setScaledContents(True)  # Allow image scaling
-            self.image_labels.append(label)
+        # Set up image label
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setMinimumSize(512, 512)
+        self.image_label.setScaledContents(True)  # Allow image scaling
 
-        # Set up layouts
+        # Set up layout
         self.setLayout(QHBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
-        for label in self.image_labels:
-            self.layout().addWidget(label)
+        self.layout().addWidget(self.image_label)
+        self.layout().setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Set up timer
         self.streaming_timer = QTimer(parent=self)
@@ -159,95 +171,85 @@ class ImagePreview(QWidget):
         self.streaming_timer.setInterval(10)  # Default interval; adjust as needed
         self.streaming_timer.timeout.connect(self._on_streaming_timeout)
 
-        # Connect events for each mmc core
-        for idx, mmc in enumerate(self._mmcores):
-            ev = mmc.events
-            ev.imageSnapped.connect(partial(self._on_image_snapped, idx))
-            ev.continuousSequenceAcquisitionStarted.connect(partial(self._on_streaming_start, idx))
-            ev.sequenceAcquisitionStarted.connect(partial(self._on_streaming_start, idx))
-            ev.sequenceAcquisitionStopped.connect(partial(self._on_streaming_stop, idx))
-            ev.exposureChanged.connect(partial(self._on_exposure_changed, idx))
+        # Connect events for the mmcore
+        ev = self._mmcore.events
+        ev.imageSnapped.connect(self._on_image_snapped)
+        ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
+        ev.sequenceAcquisitionStarted.connect(self._on_streaming_start)
+        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
+        ev.exposureChanged.connect(self._on_exposure_changed)
 
-            enev = mmc.mda.events
-            enev.frameReady.connect(
-                partial(self._on_frame_ready, idx),
-                type=Qt.ConnectionType.QueuedConnection  # Ensure the slot is called in the main thread
-            )
+        enev = self._mmcore.mda.events
+        enev.frameReady.connect(
+            self._on_frame_ready,
+            type=Qt.ConnectionType.QueuedConnection  # Ensure the slot is called in the main thread
+        )
 
         self.destroyed.connect(self._disconnect)
 
     def _disconnect(self) -> None:
-        # Disconnect events for each mmc core
-        for idx, mmc in enumerate(self._mmcores):
-            ev = mmc.events
-            with suppress(TypeError):
-                ev.imageSnapped.disconnect()
-                ev.continuousSequenceAcquisitionStarted.disconnect()
-                ev.sequenceAcquisitionStarted.disconnect()
-                ev.sequenceAcquisitionStopped.disconnect()
-                ev.exposureChanged.disconnect()
+        # Disconnect events for the mmcore
+        ev = self._mmcore.events
+        with suppress(TypeError):
+            ev.imageSnapped.disconnect()
+            ev.continuousSequenceAcquisitionStarted.disconnect()
+            ev.sequenceAcquisitionStarted.disconnect()
+            ev.sequenceAcquisitionStopped.disconnect()
+            ev.exposureChanged.disconnect()
 
-            enev = mmc.mda.events
-            with suppress(TypeError):
-                enev.frameReady.disconnect()
+        enev = self._mmcore.mda.events
+        with suppress(TypeError):
+            enev.frameReady.disconnect()
 
-    def _on_streaming_start(self, idx: int) -> None:
+    def _on_streaming_start(self) -> None:
         if not self.streaming_timer.isActive():
             self.streaming_timer.start()
 
-    def _on_streaming_stop(self, idx: int) -> None:
-        # Check if any mmc core is still streaming
-        if not any(mmc.isSequenceRunning() for mmc in self._mmcores):
+    def _on_streaming_stop(self) -> None:
+        # Stop the streaming timer
+        if not self._mmcore.isSequenceRunning():
             self.streaming_timer.stop()
 
-    def _on_exposure_changed(self, idx: int, device: str, value: str) -> None:
+    def _on_exposure_changed(self, device: str, value: str) -> None:
         # Adjust timer interval if needed
-        exposures = [mmc.getExposure() or 10 for mmc in self._mmcores]
-        interval = int(max(exposures)) or 10
+        exposure = self._mmcore.getExposure() or 10
+        interval = int(exposure) or 10
         self.streaming_timer.setInterval(interval)
 
     def _on_streaming_timeout(self) -> None:
-        # NOTE: This method is called at a rate defined by the timer interval (ie. 10ms)
-        frames = []
-        for idx, mmc in enumerate(self._mmcores):
-            frame = None
-            if not mmc.mda.is_running():
-                with suppress(RuntimeError, IndexError):
-                    frame = mmc.getLastImage()
-            else:
-                with self._frame_locks[idx]:
-                    if self._current_frames[idx] is not None:
-                        frame = self._current_frames[idx]
-                        self._current_frames[idx] = None
-            frames.append(frame)
-        # Update the images if frames are available
-        self._update_images(frames)
+        frame = None
+        if not self._mmcore.mda.is_running():
+            with suppress(RuntimeError, IndexError):
+                frame = self._mmcore.getLastImage()
+        else:
+            with self._frame_lock:
+                if self._current_frame is not None:
+                    frame = self._current_frame
+                    self._current_frame = None
+        # Update the image if a frame is available
+        if frame is not None:
+            self._display_image(frame)
 
-    def _on_image_snapped(self, idx: int, img: np.ndarray) -> None:
-        self._update_image(idx, img)
+    def _on_image_snapped(self, img: np.ndarray) -> None:
+        self._update_image(img)
 
-    def _on_frame_ready(self, idx: int, frame: np.ndarray) -> None:
-        frame = frame  # Adjust based on actual event attributes
-        with self._frame_locks[idx]:
-            self._current_frames[idx] = frame
+    def _on_frame_ready(self, event) -> None:
+        frame = event.image  # Adjust based on actual event attributes
+        with self._frame_lock:
+            self._current_frame = frame
 
-    def _update_images(self, frames: List[np.ndarray]) -> None:
-        for idx, frame in enumerate(frames):
-            if frame is not None:
-                self._display_image(idx, frame)
-
-    def _display_image(self, idx: int, img: np.ndarray) -> None:
+    def _display_image(self, img: np.ndarray) -> None:
         if img is None:
             return
         qimage = self._convert_to_qimage(img)
         if qimage is not None:
             pixmap = QPixmap.fromImage(qimage)
-            self.image_labels[idx].setPixmap(pixmap)
+            self.image_label.setPixmap(pixmap)
 
-    def _update_image(self, idx: int, img: np.ndarray) -> None:
-        # Update the frame for the specific core
-        with self._frame_locks[idx]:
-            self._current_frames[idx] = img
+    def _update_image(self, img: np.ndarray) -> None:
+        # Update the current frame
+        with self._frame_lock:
+            self._current_frame = img
 
     def _adjust_image_data(self, img: np.ndarray) -> np.ndarray:
         # NOTE: This is the default implementation for grayscale images
