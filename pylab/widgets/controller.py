@@ -36,30 +36,37 @@ class ConfigController(QWidget):
     and when the record button is pressed.
     
     Public Methods:
-    save_config(): saves the current configuration to a JSON file
+    ----------------
+    save_config(): 
+        saves the current configuration to a JSON file
     
-    record(): triggers the MDA sequence with the configuration parameters
+    record(): 
+        triggers the MDA sequence with the configuration parameters
     
-    launch_psychopy(): launches the PsychoPy experiment as a subprocess with ExperimentConfig parameters
+    launch_psychopy(): 
+        launches the PsychoPy experiment as a subprocess with ExperimentConfig parameters
     
-    show_popup(): shows a popup message to the user
+    show_popup(): 
+        shows a popup message to the user
     
     Private Methods:
-    _select_directory(): opens a dialog to select a directory and update the GUI accordingly
-    
-    _get_json_file_choices(): returns a list of JSON files in the current directory
-
-    _update_config(): updates the experiment configuration from a new JSON file
-
-    _on_table_edit(): updates the configuration parameters when the table is edited
-    
-    _refresh_config_table(): refreshes the configuration table to reflect current parameters
-    
-    _test_led(): tests the LED pattern by sending a test sequence to the Arduino-Switch device
-    
-    _stop_led(): stops the LED pattern by sending a stop sequence to the Arduino-Switch device
-    
-    _add_note(): opens a dialog to get a note from the user and save it to the ExperimentConfig.notes list
+    ----------------
+    _select_directory(): 
+        opens a dialog to select a directory and update the GUI accordingly
+    _get_json_file_choices(): 
+        returns a list of JSON files in the current directory
+    _update_config(): 
+        updates the experiment configuration from a new JSON file
+    _on_table_edit(): 
+        updates the configuration parameters when the table is edited
+    _refresh_config_table(): 
+        refreshes the configuration table to reflect current parameters
+    _test_led(): 
+        tests the LED pattern by sending a test sequence to the Arduino-Switch device
+    _stop_led(): 
+        stops the LED pattern by sending a stop sequence to the Arduino-Switch device
+    _add_note(): 
+        opens a dialog to get a note from the user and save it to the ExperimentConfig.notes list
     
     """
     # ==================================== Signals ===================================== #
@@ -67,10 +74,10 @@ class ConfigController(QWidget):
     recordStarted = pyqtSignal()
     # ------------------------------------------------------------------------------------- #
     
-    def __init__(self, mmc1: CMMCorePlus, mmc2: CMMCorePlus, cfg):
+    def __init__(self, cfg):
         super().__init__()
-        self._mmc1 = mmc1
-        self._mmc2 = mmc2
+        self._mmc1: CMMCorePlus = cfg._cores[0]
+        self._mmc2: CMMCorePlus = cfg._cores[1]
         self.config: ExperimentConfig = cfg
         self.psychopy_process = None
 
@@ -147,7 +154,11 @@ class ConfigController(QWidget):
 
     def record(self):
         """Run the MDA sequence with the global Config object parameters loaded from JSON."""
-        import keyboard
+        from pylab.io import CustomWriter
+        import threading
+
+        thread1 = threading.Thread(target=self._mmc1.run_mda, args=(self.config.meso_sequence,), kwargs={'output': CustomWriter(self.config.meso_file_path)})
+        thread2 = threading.Thread(target=self._mmc2.run_mda, args=(self.config.pupil_sequence,), kwargs={'output': CustomWriter(self.config.pupil_file_path)})
 
         # Wait for spacebar press if start_on_trigger is True
         wait_for_trigger = self.config.start_on_trigger
@@ -155,6 +166,9 @@ class ConfigController(QWidget):
             self.launch_psychopy()
             self.show_popup()
         # Emit signal to notify other widgets
+
+        thread1.start()
+        thread2.start()
         self.recordStarted.emit() # Signals to start the MDA sequence
 
 
@@ -175,7 +189,6 @@ class ConfigController(QWidget):
         self.psychopy_process = QProcess(self)
         self.psychopy_process.finished.connect(self._handle_process_finished)
         self.psychopy_process.start(args[0], args[1:])
-        self.show_popup()
 
 
     def _handle_process_finished(self, exit_code, exit_status):
@@ -206,7 +219,7 @@ class ConfigController(QWidget):
 
     #-----------------------------------------------------------------------------------------------#
     
-    # ============================== Private Class Methods ============================================ #
+    #============================== Private Class Methods ==========================================#
 
     def _select_directory(self):
         """Open a dialog to select a directory and update the GUI accordingly."""
@@ -238,12 +251,7 @@ class ConfigController(QWidget):
                 self._refresh_config_table()
             except Exception as e:
                 print(f"Trouble updating ExperimentConfig from AcquisitionEngine:\n{json_path_input}\nConfiguration not updated.")
-                print(e)
-            # try:
-            #     # Load the LED pattern to the Arduino-Switch device
-            #     self._mmc1.getPropertyObject('Arduino-Switch', 'State').loadSequence(self.config.led_pattern)
-            # except Exception as e:
-            #     print(f'{self.__str__}: LED Pattern not uploaded to Arduino: {e}')    
+                print(e) 
 
     def _on_table_edit(self, row, column):
         """Update the configuration parameters when the table is edited."""
