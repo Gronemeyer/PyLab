@@ -39,7 +39,8 @@ class ExperimentConfig:
         self.notes: list = []
 
         self.meso_core, self.pupil_core = mmconfig.load_cores() if mmconfig else (None, None)
-    
+        self.mmconfig = mmconfig
+        
     @property
     def _cores(self) -> tuple[CMMCorePlus, CMMCorePlus]:
         '''Return the two CMMCorePlus instances'''

@@ -123,10 +123,15 @@ class MMConfigurator:
         self.pupil_engine = PupilEngine(self.mmcore2, use_hardware_sequencing=True) 
         self.dev_engine = DevEngine(self.mmcore1, use_hardware_sequencing=True)
 
-        self.mmcore1.register_mda_engine(self.meso_engine)
-        logging.info(f"MMConfigurator: {self.meso_engine} registered to {self.mmcore1}")       
-        self.mmcore2.register_mda_engine(self.pupil_engine)
-        logging.info(f"MMConfigurator: {self.pupil_engine} registered to {self.mmcore2}")
+        if not self.development_mode:
+            self.mmcore1.register_mda_engine(self.meso_engine)
+            logging.info(f"MMConfigurator: {self.meso_engine} registered to {self.mmcore1}")       
+            self.mmcore2.register_mda_engine(self.pupil_engine)
+            logging.info(f"MMConfigurator: {self.pupil_engine} registered to {self.mmcore2}")
+        else:
+            self.mmcore1.register_mda_engine(self.dev_engine)
+            logging.info(f"MMConfigurator: {self.dev_engine} registered to {self.mmcore1}")
+            self.mmcore2.register_mda_engine(self.dev_engine)
 
     def test_mda(self, frames: int = 20000):    
         from pylab.engines import MesoEngine, PupilEngine

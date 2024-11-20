@@ -27,8 +27,8 @@ PARAMETERS = {
     'mmc1_configuration_path': 'C:/Program Files/Micro-Manager-2.0/mm-sipefield.cfg',
     'mmc2_configuration_path': 'C:/Program Files/Micro-Manager-2.0/ThorCam.cfg',
     'memory_buffer_size': 10000,
-    'dhyana_fps': 50,
-    'thorcam_fps': 34,
+    'dhyana_fps': 49,
+    'thorcam_fps': 30,
     }
 
 @click.group()
@@ -45,8 +45,10 @@ def launch(dev):
     """
     print('Launching mesofield acquisition interface...')
     app = QApplication([])
-    Config = ExperimentConfig(MMConfigurator(PARAMETERS, dev))
-    mesofield = MainWindow(Config)
+    mmconfig = MMConfigurator(PARAMETERS, dev)
+    config = ExperimentConfig(mmconfig)
+    mmconfig.meso_engine.set_config(config)
+    mesofield = MainWindow(config)
     mesofield.show()
     app.exec_()
 
