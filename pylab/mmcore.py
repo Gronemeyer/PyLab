@@ -88,6 +88,9 @@ class MMConfigurator:
         self.dhyana_fps: int = parameters.get('dhyana_fps', 50)
         self.thorcam_fps: int = parameters.get('thorcam_fps', 34)
         self.memory_buffer_size: int = parameters.get('memory_buffer_size', 10000)
+        
+        self.encoder_params: dict = parameters.get('encoder', None)
+
 
     def load_cores(self):
         '''Load the MicroManager Cores from MM Application Path (str) and MM Configuration Path (str)'''
@@ -121,7 +124,7 @@ class MMConfigurator:
 
         self.meso_engine = MesoEngine(self.mmcore1, use_hardware_sequencing=True)
         self.pupil_engine = PupilEngine(self.mmcore2, use_hardware_sequencing=True) 
-        self.dev_engine = DevEngine(self.mmcore1, use_hardware_sequencing=True)
+        #self.dev_engine = DevEngine(self.mmcore1, use_hardware_sequencing=True)
 
         if not self.development_mode:
             self.mmcore1.register_mda_engine(self.meso_engine)
@@ -129,9 +132,9 @@ class MMConfigurator:
             self.mmcore2.register_mda_engine(self.pupil_engine)
             logging.info(f"MMConfigurator: {self.pupil_engine} registered to {self.mmcore2}")
         else:
-            self.mmcore1.register_mda_engine(self.dev_engine)
+            self.mmcore1.register_mda_engine(self.meso_engine)
             logging.info(f"MMConfigurator: {self.dev_engine} registered to {self.mmcore1}")
-            self.mmcore2.register_mda_engine(self.dev_engine)
+            self.mmcore2.register_mda_engine(self.pupil_engine)
 
     def test_mda(self, frames: int = 20000):    
         from pylab.engines import MesoEngine, PupilEngine

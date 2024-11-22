@@ -1,5 +1,8 @@
 from . import *
 import logging
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from pylab.io import DataManager, SerialWorker
 
 class MesoEngine(MDAEngine):
     def __init__(self, mmc: pymmcore_plus.CMMCorePlus, use_hardware_sequencing: bool = True) -> None:
@@ -7,15 +10,19 @@ class MesoEngine(MDAEngine):
         self._mmc = mmc
         self.use_hardware_sequencing = use_hardware_sequencing
         self._config = None
-
+        self._encoder: SerialWorker = None
+        self._wheel_data = None
+        
     def set_config(self, cfg) -> None:
         self._config = cfg
+        self._encoder = cfg.encoder
     
     def setup_sequence(self, sequence: useq.MDASequence) -> SummaryMetaV1 | None:
         """Perform setup required before the sequence is executed."""
         self._mmc.getPropertyObject('Arduino-Switch', 'State').loadSequence(self._config.led_pattern)
         self._mmc.getPropertyObject('Arduino-Switch', 'State').setValue(4) # seems essential to initiate serial communication
         self._mmc.getPropertyObject('Arduino-Switch', 'State').startSequence()
+
         logging.info(f'{self.__str__()} setup_sequence loaded LED sequence at time: {time.time()}')
         
         print('Arduino loaded')
@@ -30,6 +37,10 @@ class MesoEngine(MDAEngine):
         
         custom override sequencerunning loop jgronemeyer24
         """
+        
+        if self._encoder is not None:
+            self._encoder.start()
+        
         n_events = len(event.events)
 
         t0 = event.metadata.get("runner_t0") or time.perf_counter()
@@ -78,5 +89,13 @@ class MesoEngine(MDAEngine):
     def teardown_sequence(self, sequence: useq.MDASequence) -> None:
         """Perform any teardown required after the sequence has been executed."""
         logging.info(f'{self.__str__()} teardown_sequence at time: {time.time()}')
+        
+        # Stop the Arduino LED Sequence
         self._mmc.getPropertyObject('Arduino-Switch', 'State').stopSequence()
+        # Stop the SerialWorker collecting encoder data
+        self._encoder.stop()
+        # Get and store the encoder data
+        self._wheel_data = self._encoder.get_data()
+        self._config.save_wheel_encoder_data(self._wheel_data)
         pass
+    

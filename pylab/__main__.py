@@ -29,6 +29,14 @@ PARAMETERS = {
     'memory_buffer_size': 10000,
     'dhyana_fps': 49,
     'thorcam_fps': 30,
+    'encoder': {
+        'type': 'dev',
+        'port': 'COM4',
+        'baudrate': '57600',
+        'CPR': '2400',
+        'diameter_cm': '0.1',
+        'sample_interval_ms': '20'
+    }
     }
 
 @click.group()
