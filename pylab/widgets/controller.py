@@ -22,7 +22,9 @@ from PyQt6.QtWidgets import (
 
 from pymmcore_plus import CMMCorePlus
 
-from pylab.config import ExperimentConfig
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from pylab.config import ExperimentConfig
 
 class ConfigController(QWidget):
     """AcquisitionEngine object for the napari-mesofield plugin.
@@ -169,6 +171,7 @@ class ConfigController(QWidget):
 
         thread1.start()
         thread2.start()
+        self.config.encoder.start()
         self.recordStarted.emit() # Signals to start the MDA sequence
 
 

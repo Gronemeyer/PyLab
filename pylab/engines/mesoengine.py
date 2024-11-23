@@ -38,8 +38,8 @@ class MesoEngine(MDAEngine):
         custom override sequencerunning loop jgronemeyer24
         """
         
-        if self._encoder is not None:
-            self._encoder.start()
+        # if self._encoder is not None:
+        #     self._encoder.start()
         
         n_events = len(event.events)
 
