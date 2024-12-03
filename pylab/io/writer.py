@@ -82,7 +82,7 @@ class CustomWriter(_5DWriterBase[np.memmap]):
         self._is_ome = ".ome.tif" in self._filename
         
         # Custom attribute: Create a filename for the frame metadata jgronemeyer24
-        self._frame_metadata_filename = self._filename.replace(".ome.tif", FRAME_MD_FILENAME)
+        self._frame_metadata_filename = self._filename + FRAME_MD_FILENAME
 
         super().__init__()
 
@@ -137,12 +137,12 @@ class CustomWriter(_5DWriterBase[np.memmap]):
         Custom Override to save the frame metadata to a JSON file.
         jgronemeyer24
         """
+        
         # Convert defaultdict to a regular dictionary
         regular_dict = dict(self.frame_metadatas)
 
         # Serialize to JSON using CustomJSONEncoder
         json_str = json.dumps(regular_dict, indent=4, cls=CustomJSONEncoder)
-
         # Save to a file
         with open(self._frame_metadata_filename, "w") as file:
             file.write(json_str)

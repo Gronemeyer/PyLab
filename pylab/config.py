@@ -129,13 +129,13 @@ class ExperimentConfig:
         return f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.tiff"
 
     @property
-    def bids_dir(self):
+    def bids_dir(self, type: str = 'func') -> str:
         """ Dynamic construct of BIDS directory path """
         bids = os.path.join(
             f"{self.protocol}",
             f"sub-{self.subject}",
             f"ses-{self.session}",
-            'func'
+            type #TODO: Have this supprt dynamic switching between func and beh
         )
         return os.path.abspath(os.path.join(self.save_dir, bids))
 
@@ -299,10 +299,10 @@ class ExperimentConfig:
             data = pd.DataFrame(data)
             
         filename = f'{self.subject}_{self.task}_{self.session}_encoder_data.csv'
-        save_path = self._generate_unique_file_path(filename)
+        unique_filename = self._generate_unique_file_path(filename)
         try:
-            data.to_csv(save_path, index=False)
-            print(f"Encoder data saved to {save_path}")
+            data.to_csv(unique_filename, index=False)
+            print(f"Encoder data saved to {unique_filename}")
         except Exception as e:
             print(f"Error saving encoder data: {e}")
         
