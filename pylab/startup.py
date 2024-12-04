@@ -1,0 +1,231 @@
+import useq
+import logging
+
+
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List
+import json
+
+from pymmcore_plus import CMMCorePlus
+from pymmcore_plus.mda import MDAEngine
+
+from pylab.engines import DevEngine, MesoEngine, PupilEngine
+from pylab.io.worker import SerialWorker
+
+# Disable pymmcore-plus logger
+package_logger = logging.getLogger('pymmcore-plus')
+
+# Set the logging level to CRITICAL to suppress lower-level logs
+package_logger.setLevel(logging.CRITICAL)
+
+@dataclass
+class EncoderConfig:
+    port: str
+    baudrate: int
+    sample_interval_ms: int
+    cpr: int
+    diameter_cm: float
+    reverse: int
+    development_mode: bool
+
+@dataclass
+class Encoder:
+    type: str = 'dev'
+    port: str = 'COM4'
+    baudrate: int = 57600
+    CPR: int = 2400
+    diameter_cm: float = 0.1
+    sample_interval_ms: int = 20
+    reverse: int = -1
+    worker: Optional[SerialWorker] = None
+
+    def __post_init__(self):
+        config = EncoderConfig(
+            port=self.port,
+            baudrate=self.baudrate,
+            sample_interval_ms=self.sample_interval_ms,
+            cpr=self.CPR,
+            diameter_cm=self.diameter_cm,
+            reverse=self.reverse,
+            development_mode=True if self.type == 'dev' else False,
+        )
+        self.worker = SerialWorker(config)
+        
+@dataclass
+class Engine:
+    ''' Engine dataclass to create different engine types for MDA '''
+    name: str
+    use_hardware_sequencing: bool = True
+
+    def create_engine(self, mmcore: CMMCorePlus):
+        # Create an appropriate engine based on the given name
+        if self.name == 'DevEngine':
+            return DevEngine(mmcore, use_hardware_sequencing=self.use_hardware_sequencing)
+        elif self.name == 'MesoEngine':
+            return MesoEngine(mmcore, use_hardware_sequencing=self.use_hardware_sequencing)
+        elif self.name == 'PupilEngine':
+            return PupilEngine(mmcore, use_hardware_sequencing=self.use_hardware_sequencing)
+        else:
+            raise ValueError(f"Unknown engine type: {self.name}")
+
+@dataclass
+class Core:
+    ''' MicroManager Core dataclass to manage MicroManager properties, configurations, and MDA engines
+    '''
+    name: str
+    configuration_path: Optional[str] = None
+    memory_buffer_size: int = 2000
+    use_hardware_sequencing: bool = True
+    roi: Optional[List[int]] = None  # (x, y, width, height)
+    trigger_port: Optional[int] = None
+    properties: Dict[str, str] = field(default_factory=dict)
+    core: Optional[CMMCorePlus] = field(default=None, init=False)
+    engine: Optional[Engine] = None
+
+    def _load_core(self):
+        ''' Load the core with specified configurations '''
+        self.core = CMMCorePlus()
+        if self.configuration_path:
+            print(f"Loading {self.name} MicroManager configuration from {self.configuration_path}...")
+            self.core.loadSystemConfiguration(self.configuration_path)
+        # Set memory buffer size
+        self.core.setCircularBufferMemoryFootprint(self.memory_buffer_size)
+        # Load additional properties and parameters for the core
+        #self.load_properties()
+        if self.configuration_path:
+            self._load_additional_params()
+        # Attach the specified engine to the core if available
+        if self.engine:
+            self._load_engine()
+        
+    def _load_engine(self):
+        ''' Load the engine for the core '''
+        engine = self.engine.create_engine(self.core)
+        self.core.mda.set_engine(engine)
+        logging.info(f"Core loaded for {self.name} from {self.configuration_path} with memory footprint: {self.core.getCircularBufferMemoryFootprint()} MB and engine {self.engine.name}")
+
+    def load_properties(self):
+        # Load specific properties into the core
+        for prop, value in self.properties.items():
+            self.core.setProperty('Core', prop, value)
+        logging.info(f"Properties loaded for core {self.name}")
+
+    def _load_additional_params(self):
+        ''' Load additional parameters that are specific to certain cores '''
+        # ========================== ThorCam Parameters ========================== #
+        if self.name == 'ThorCam':
+            # Specific settings for ThorCam
+            if self.roi:
+                self.core.setROI(self.name, *self.roi)
+            self.core.setExposure(20)  # Set default exposure
+            self.core.mda.engine.use_hardware_sequencing = self.use_hardware_sequencing
+            logging.info(f"Additional parameters loaded for {self.name}")
+            
+        # ========================== Dhyana Parameters ========================== #
+        elif self.name == 'Dhyana':
+            if self.trigger_port is not None:
+                self.core.setProperty('Dhyana', 'Output Trigger Port', str(self.trigger_port))
+            # Configure Arduino switches and shutters for Dhyana setup
+            self.core.setProperty('Arduino-Switch', 'Sequence', 'On')
+            self.core.setProperty('Arduino-Shutter', 'OnOff', '1')
+            self.core.setProperty('Core', 'Shutter', 'Arduino-Shutter')
+            # Set channel group for Dhyana
+            self.core.setChannelGroup('Channel')
+            self.core.mda.engine.use_hardware_sequencing = self.use_hardware_sequencing
+            logging.info(f"Additional parameters loaded for {self.name}")
+
+@dataclass
+class Startup:
+    ''' Startup dataclass for managing the initial configuration of cores and other components '''
+        
+    widefield_micromanager_path: str = 'C:/Program Files/Micro-Manager-2.0gamma'
+    thorcam_micromanager_path: str = 'C:/Program Files/Micro-Manager-thor'
+    memory_buffer_size: int = 10000
+    dhyana_fps: int = 49
+    thorcam_fps: int = 30
+    
+    encoder: Encoder = field(default_factory=lambda: Encoder())
+    
+    widefield: Core = field(default_factory=lambda: Core(
+        name='DevCam',
+        configuration_path=r'C:\Program Files\Micro-Manager-2.0\MMConfig_demo.cfg',
+        memory_buffer_size=10000,
+        use_hardware_sequencing=True,
+        engine=Engine(name='DevEngine', use_hardware_sequencing=True)
+    ))
+    
+    thorcam: Core = field(default_factory=lambda: Core(
+        name='DevCam',
+        configuration_path=r'C:\Program Files\Micro-Manager-2.0\MMConfig_demo.cfg',
+        memory_buffer_size=10000,
+        use_hardware_sequencing=True,
+        engine=Engine(name='DevEngine', use_hardware_sequencing=True)
+    ))
+
+    @classmethod
+    def from_json(cls, file_path: str):
+        ''' Load configuration parameters from a JSON file '''
+        
+        with open(file_path, 'r') as file:
+            json_data = json.load(file)
+        
+        if 'encoder' in json_data:
+            json_data['encoder'] = Encoder(**json_data['encoder'])
+        
+        if 'widefield' in json_data:
+            # Create Core instance without engine
+            core_data = json_data['widefield']
+            core_instance = Core(**core_data)
+            # Manually set the engine
+            core_instance.engine = Engine(name='MesoEngine', use_hardware_sequencing=core_data.get('use_hardware_sequencing', True))
+            json_data['widefield'] = core_instance
+        
+        if 'thorcam' in json_data:
+            core_data = json_data['thorcam']
+            core_instance = Core(**core_data)
+            # Manually set the engine
+            core_instance.engine = Engine(name='PupilEngine', use_hardware_sequencing=core_data.get('use_hardware_sequencing', True))
+            json_data['thorcam'] = core_instance
+        
+        return cls(**json_data)
+    
+    def initialize_cores(self):
+        # Initialize widefield and thorcam cores
+        self.widefield._load_core()
+        self.thorcam._load_core()
+        logging.info("Cores initialized")
+
+
+''' Example Default widefield and thorcam Core dataclass instances 
+
+```python
+
+    widefield: Core = field(default_factory=lambda: Core(
+        name='Dhyana',
+        configuration_path='C:/Program Files/Micro-Manager-2.0/mm-sipefield.cfg',
+        memory_buffer_size=10000,
+        use_hardware_sequencing=True,
+        trigger_port=2,
+        properties={
+            'Arduino-Switch': 'Sequence',
+            'Arduino-Shutter': 'OnOff',
+            'Core': 'Shutter'
+        },
+        engine=Engine(name='MesoEngine', use_hardware_sequencing=True)
+    ))
+    
+    thorcam: Core = field(default_factory=lambda: Core(
+        name='ThorCam',
+        configuration_path='C:/Program Files/Micro-Manager-2.0/ThorCam.cfg',
+        memory_buffer_size=10000,
+        use_hardware_sequencing=True,
+        roi=[440, 305, 509, 509],
+        properties={
+            'Exposure': '20'
+        },
+        engine=Engine(name='PupilEngine', use_hardware_sequencing=True)
+    ))
+    
+```
+    
+'''

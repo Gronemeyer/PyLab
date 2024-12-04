@@ -1,0 +1,36 @@
+{
+    "widefield_micromanager_path": "C:/Program Files/Micro-Manager-2.0gamma",
+    "thorcam_micromanager_path": "C:/Program Files/Micro-Manager-thor",
+    "memory_buffer_size": 10000,
+    "dhyana_fps": 49,
+    "thorcam_fps": 30,
+    "encoder": {
+      "type": "wheel",
+      "port": "COM4",
+      "baudrate": 57600,
+      "CPR": 2400,
+      "diameter_cm": 0.1,
+      "sample_interval_ms": 20
+    },
+    "thorcam": {
+      "name": "ThorCam",
+      "configuration_path": "C:/Program Files/Micro-Manager-2.0/ThorCam.cfg",
+      "use_hardware_sequencing": true,
+      "roi": [440, 305, 509, 509],
+      "properties": {
+        "Exposure": "20"
+      }
+    },
+    "widefield": {
+      "name": "Dhyana",
+      "configuration_path": "C:/Program Files/Micro-Manager-2.0/mm-sipefield.cfg",
+      "use_hardware_sequencing": true,
+      "trigger_port": 2,
+      "properties": {
+        "Arduino-Switch": "Sequence",
+        "Arduino-Shutter": "OnOff",
+        "Core": "Shutter"
+      }
+    }
+}
+  

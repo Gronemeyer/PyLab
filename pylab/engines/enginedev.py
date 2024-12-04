@@ -1,6 +1,20 @@
 from . import *
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from pylab.io import SerialWorker
+
 class DevEngine(MDAEngine):
+    
+    def __init__(self, mmc: pymmcore_plus.CMMCorePlus, use_hardware_sequencing: bool = True) -> None:
+        super().__init__(mmc)
+        self._mmc = mmc
+        self.use_hardware_sequencing = use_hardware_sequencing
+        self._config = None
+        print('DevEngine initialized')
+        
+    def set_config(self, cfg) -> None:
+        self._config = cfg
     
     def exec_sequenced_event(self, event: 'SequencedEvent') -> Iterable['PImagePayload']:
         """Execute a sequenced (triggered) event and return the image data.
@@ -15,7 +29,6 @@ class DevEngine(MDAEngine):
 
         t0 = event.metadata.get("runner_t0") or time.perf_counter()
         event_t0_ms = (time.perf_counter() - t0) * 1000
-        
         # Start sequence
         # Note that the overload of startSequenceAcquisition that takes a camera
         # label does NOT automatically initialize a circular buffer.  So if this call
@@ -42,8 +55,8 @@ class DevEngine(MDAEngine):
                 else:
                     if count == n_events:
                         logging.debug(f'{self.__str__()} stopped MDA: \n{self._mmc} with \n{count} events and \n{remaining} remaining with \n{self._mmc.getRemainingImageCount()} images in buffer')
+                        self._mmc.stopSequenceAcquisition() 
                         break
-                        #self._mmc.stopSequenceAcquisition() 
                     time.sleep(0.001)
             else:
                 break
