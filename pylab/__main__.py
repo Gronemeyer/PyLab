@@ -9,7 +9,7 @@ import click
 from PyQt6.QtWidgets import QApplication
 from pylab.maingui import MainWindow
 from pylab.config import ExperimentConfig
-from pylab.mmcore import MMConfigurator
+from pylab.startup import Startup
 '''
 This is the client terminal command line interface
 
@@ -53,9 +53,13 @@ def launch(dev):
     """
     print('Launching mesofield acquisition interface...')
     app = QApplication([])
-    mmconfig = MMConfigurator(PARAMETERS, dev)
-    config = ExperimentConfig(mmconfig)
-    mmconfig.meso_engine.set_config(config)
+    config_path = 'params.json'
+    config = ExperimentConfig(config_path, dev)
+    config.hardware.initialize_cores()
+    # if dev:
+    #     mmconfig.dev_cores.set_config(config)
+    # else:
+    #     mmconfig.meso_engine.set_config(config)
     mesofield = MainWindow(config)
     mesofield.show()
     app.exec_()
@@ -67,7 +71,7 @@ def test_mda(frames):
     """
     Run a test of the mesofield Multi-Dimensional Acquisition (MDA) 
     """
-    from pylab.mmcore import test_mda
+    from pylab.startup import test_mda
 
 @cli.command()
 def run_mda():

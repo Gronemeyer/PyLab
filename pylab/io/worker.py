@@ -1,4 +1,4 @@
-import serial
+import random
 import time
 from queue import Queue
 
@@ -14,9 +14,7 @@ if TYPE_CHECKING:
 # Constants
 ENCODER_CPR = 360       # Encoder counts per revolution
 WHEEL_DIAMETER = 0.1    # Wheel diameter in meters
-SERIAL_PORT = 'COM4'    # Replace with your serial port
-BAUD_RATE = 57600       # Match the Arduino's baud rate
-SAMPLE_INTERVAL = 20   # Update interval in milliseconds
+SAMPLE_INTERVAL = 20    # Update interval in milliseconds
 
 class SerialWorker(QThread):
     
@@ -27,15 +25,15 @@ class SerialWorker(QThread):
     serialSpeedUpdated = pyqtSignal(float)
     # ======================================================== #
 
-    def __init__(self, serial_port, baud_rate, cfg = None):
+    def __init__(self, serial_port=None, baud_rate=None, cfg=None, development_mode=False):
         super().__init__()
-        self.serial_port = str(serial_port)
-        self.baud_rate = int(baud_rate)
-        self.data_manager= DataManager()
+        self.data_manager = DataManager()
         self.data_queue: Queue = self.data_manager.data_queue
-        self.arduino = None
         self.stored_data = []
         self._config: ExperimentConfig = cfg
+        self.development_mode = development_mode
+        self.serial_port = serial_port
+        self.baud_rate = baud_rate
         self.init_data()
 
     def init_data(self):
@@ -49,7 +47,18 @@ class SerialWorker(QThread):
 
     def run(self):
         self.init_data()
+        self.start_time = time.time()
         try:
+            if self.development_mode:
+                self.run_development_mode()
+            else:
+                self.run_serial_mode()
+        finally:
+            print("Simulation stopped.")
+
+    def run_serial_mode(self):
+        try:
+            import serial
             self.arduino = serial.Serial(self.serial_port, self.baud_rate, timeout=0.1)
             self.arduino.flushInput()  # Flush any existing input
             print("Serial port opened.")
@@ -62,29 +71,42 @@ class SerialWorker(QThread):
                 try:
                     data = self.arduino.readline().decode('utf-8').strip()
                     if data:
-                        try:
-                            clicks = int(data)
-                            #print(f"Received data: {clicks}")
-                            self.stored_data.append(clicks) # Store data for later retrieval
-                            self.data_queue.put(clicks) # Store data in the DataManager queue for access by other threads
-                            self.serialDataReceived.emit(clicks) # Emit PyQt signal for real-time plotting
-                            #self.process_data(clicks) # Process the data for speed calculation
-                        except ValueError:
-                            print(f"Non-integer data received: {data}")
+                        clicks = int(data)
+                        self.stored_data.append(clicks)  # Store data for later retrieval
+                        self.data_queue.put(clicks)  # Store data in the DataManager queue for access by other threads
+                        self.serialDataReceived.emit(clicks)  # Emit PyQt signal for real-time plotting
+                        self.process_data(clicks)
+                except ValueError:
+                    print(f"Non-integer data received: {data}")
                 except serial.SerialException as e:
                     print(f"Serial exception: {e}")
                     self.requestInterruption()
-                except Exception as e:
-                    print(f"Exception in SerialWorker: {e}")
-                    self.requestInterruption()
                 self.msleep(1)  # Sleep for 1ms to reduce CPU usage
         finally:
-            if self.arduino is not None:
+            if hasattr(self, 'arduino') and self.arduino is not None:
                 try:
                     self.arduino.close()
                     print("Serial port closed.")
                 except Exception as e:
                     print(f"Exception while closing serial port: {e}")
+
+    def run_development_mode(self):
+        while not self.isInterruptionRequested():
+            try:
+                # Simulate receiving random encoder clicks
+                clicks = random.randint(1, 10)  # Simulating random click values
+                
+                # Emit signals, store data, and push to the queue
+                self.stored_data.append(clicks)  # Store data for later retrieval
+                self.data_queue.put(clicks)  # Store data in the DataManager queue for access by other threads
+                self.serialDataReceived.emit(clicks)  # Emit PyQt signal for real-time plotting
+                
+                # Optionally, simulate processing the data for speed calculation
+                self.process_data(clicks)
+            except Exception as e:
+                print(f"Exception in DevelopmentSerialWorker: {e}")
+                self.requestInterruption()
+            self.msleep(SAMPLE_INTERVAL)  # Sleep for sample interval to reduce CPU usage
 
     def stop(self):
         self.requestInterruption()
@@ -99,7 +121,7 @@ class SerialWorker(QThread):
     def process_data(self, position_change):
         try:
             # Use fixed delta_time based on sample interval
-            delta_time = 20 / 1000.0  # Convert milliseconds to seconds
+            delta_time = SAMPLE_INTERVAL / 1000.0  # Convert milliseconds to seconds
 
             # Calculate speed
             speed = self.calculate_speed(position_change, delta_time)
@@ -109,15 +131,20 @@ class SerialWorker(QThread):
             self.times.append(current_time - self.start_time)
             self.speeds.append(speed)
 
-            # Update status label
-            self.status_label.setText(f"Receiving data... Speed: {speed:.2f} m/s")
+            # Optionally update GUI label or emit a signal for speed update
+            self.serialSpeedUpdated.emit(speed)
         except Exception as e:
             print(f"Exception in processData: {e}")
 
     def calculate_speed(self, delta_clicks, delta_time):
-        reverse = -1 #TODO:if self.config.encoder_reverse else -1
+        reverse = -1  # Placeholder for direction configuration
 
         rotations = delta_clicks / ENCODER_CPR
-        distance = -1 * rotations * (3.1416 * WHEEL_DIAMETER)  # Circumference * rotations
+        distance = reverse * rotations * (3.1416 * WHEEL_DIAMETER)  # Circumference * rotations
         speed = distance / delta_time
-        #self.serialSpeedUpdated.emit(speed)
+        return speed
+
+# Usage Example:
+# Replace the original SerialWorker instantiation with SerialWorker in development mode
+# worker = SerialWorker(cfg=your_config, development_mode=True)
+# worker.start()

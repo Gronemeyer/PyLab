@@ -5,15 +5,13 @@ import pandas as pd
 import os
 import useq
 import warnings
-import logging
-
 from pymmcore_plus import CMMCorePlus
 
 from typing import TYPE_CHECKING
 
 from pylab.io import SerialWorker
     
-from pylab.mmcore import MMConfigurator
+from pylab.startup import Startup
 
 class ExperimentConfig:
     """## Generate and store parameters loaded from a JSON file. 
@@ -37,25 +35,33 @@ class ExperimentConfig:
     ```
     """
 
-    def __init__(self, mmconfig: MMConfigurator = None):
+    def __init__(self, path: str = None, development_mode: bool = False):
         self._parameters = {}
         self._json_file_path = ''
         self._output_path = ''
         self._save_dir = ''
+
+        if development_mode: 
+            self.hardware = Startup() 
+        else:
+            self.hardware = Startup.from_json(os.path.join(os.path.dirname(__file__), path))
+
+        # Extract FPS values from Startup instance, if available
+
+        self.dhyana_fps: int = self.hardware.dhyana_fps
+        self.thorcam_fps: int = self.hardware.thorcam_fps 
+        self._encoder = self.hardware.encoder.worker
         
-        self.dhyana_fps: int = mmconfig.dhyana_fps
-        self.thorcam_fps: int = mmconfig.thorcam_fps 
         self.notes: list = []
-        self.meso_core, self.pupil_core = mmconfig.load_cores() if mmconfig else (None, None)
-        self.mmconfig = mmconfig
-        
-        self.encoder_params = mmconfig.encoder_params
-        self.encoder = SerialWorker(self.encoder_params['port'], self.encoder_params['baudrate'])
 
     @property
     def _cores(self) -> tuple[CMMCorePlus, CMMCorePlus]:
-        '''Return the two CMMCorePlus instances'''
-        return self.meso_core, self.pupil_core
+        """Return the two CMMCorePlus instances from the Startup cores."""
+        return self.hardware.widefield.core, self.hardware.thorcam.core
+
+    @property
+    def encoder(self) -> SerialWorker:
+        return self._encoder
 
     @property
     def save_dir(self) -> str:
