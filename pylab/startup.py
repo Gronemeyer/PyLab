@@ -23,7 +23,7 @@ class Encoder:
     type: str = 'dev'
     port: str = 'COM4'
     baudrate: int = 57600
-    CPR: int = 2400
+    cpr: int = 2400
     diameter_cm: float = 0.1
     sample_interval_ms: int = 20
     reverse: int = -1
@@ -35,9 +35,20 @@ class Encoder:
             serial_port=self.port,
             baud_rate=self.baudrate,
             sample_interval=self.sample_interval_ms,
+            wheel_diameter=self.diameter_cm,
+            cpr=self.cpr,
             development_mode=True if self.type == 'dev' else False,
         )
-        
+
+    def __repr__(self):
+        return (
+            f"Encoder(\n"
+            f"  worker={repr(self.worker)}"
+        )
+    
+    def get_data(self):
+        return self.worker.get_data()
+    
 @dataclass
 class Engine:
     ''' Engine dataclass to create different engine types for MDA '''
@@ -53,7 +64,7 @@ class Engine:
         elif self.name == 'PupilEngine':
             return PupilEngine(mmcore, use_hardware_sequencing=self.use_hardware_sequencing)
         else:
-            raise ValueError(f"Unknown engine type: {self.name}")
+            raise ValueError(f"Unknown engine type: {self.name}")     
 
 @dataclass
 class Core:
@@ -68,6 +79,17 @@ class Core:
     properties: Dict[str, str] = field(default_factory=dict)
     core: Optional[CMMCorePlus] = field(default=None, init=False)
     engine: Optional[Engine] = None
+
+    def __repr__(self):
+        return (
+            f"Core:\n"
+            f"  name='{self.name}',\n"
+            f"  core={repr(self.core)},\n"
+            f"  engine={repr(self.engine)}\n"
+            f"  configuration_path='{self.configuration_path}',\n"
+            f"  memory_buffer_size={self.memory_buffer_size},\n"
+            f"  properties={self.properties}\n\n"
+        )
 
     def _load_core(self):
         ''' Load the core with specified configurations '''
@@ -128,11 +150,11 @@ class Core:
 class Startup:
     ''' Startup dataclass for managing the initial configuration of cores and other components '''
         
-    widefield_micromanager_path: str = 'C:/Program Files/Micro-Manager-2.0gamma'
-    thorcam_micromanager_path: str = 'C:/Program Files/Micro-Manager-thor'
-    memory_buffer_size: int = 10000
-    dhyana_fps: int = 49
-    thorcam_fps: int = 30
+    _widefield_micromanager_path: str = 'C:/Program Files/Micro-Manager-2.0gamma'
+    _thorcam_micromanager_path: str = 'C:/Program Files/Micro-Manager-thor'
+    _memory_buffer_size: int = 10000
+    _dhyana_fps: int = 49
+    _thorcam_fps: int = 30
     
     encoder: Encoder = field(default_factory=lambda: Encoder())
     
@@ -150,8 +172,21 @@ class Startup:
         engine=Engine(name='DevEngine', use_hardware_sequencing=True)
     ))
 
+    def __repr__(self):
+        return (
+            f"HARDWARE:\n"
+            f"====================\n"
+            f"encoder={repr(self.encoder)}\n"
+            f'\nCORES:\n'
+            f"====================\n"
+            f"MMCORE 1={repr(self.widefield)}"
+            f"  dhyana_fps={self.dhyana_fps}\n\n"
+            f"MMCORE 2={repr(self.thorcam)}"
+            f"  thorcam_fps={self.thorcam_fps} \n"
+        )
+
     @classmethod
-    def from_json(cls, file_path: str):
+    def _from_json(cls, file_path: str):
         ''' Load configuration parameters from a JSON file '''
         
         with open(file_path, 'r') as file:
@@ -182,6 +217,8 @@ class Startup:
         self.widefield._load_core()
         self.thorcam._load_core()
         logging.info("Cores initialized")
+
+
 
 
 ''' Example Default widefield and thorcam Core dataclass instances 
