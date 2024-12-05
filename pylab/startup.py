@@ -34,6 +34,7 @@ class Encoder:
         self.worker = SerialWorker(
             serial_port=self.port,
             baud_rate=self.baudrate,
+            sample_interval=self.sample_interval_ms,
             development_mode=True if self.type == 'dev' else False,
         )
         

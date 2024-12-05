@@ -22,10 +22,10 @@ class SerialWorker(QThread):
     serialDataReceived = pyqtSignal(int)
     serialStreamStarted = pyqtSignal()
     serialStreamStopped = pyqtSignal()
-    serialSpeedUpdated = pyqtSignal(float)
+    serialSpeedUpdated = pyqtSignal(float, float)
     # ======================================================== #
 
-    def __init__(self, serial_port=None, baud_rate=None, cfg=None, development_mode=False):
+    def __init__(self, serial_port: str = None, baud_rate: int = None, sample_interval: int = None, cfg=None, development_mode=False):
         super().__init__()
         self.data_manager = DataManager()
         self.data_queue: Queue = self.data_manager.data_queue
@@ -34,6 +34,7 @@ class SerialWorker(QThread):
         self.development_mode = development_mode
         self.serial_port = serial_port
         self.baud_rate = baud_rate
+        self.sample_interval_ms = sample_interval
         self.init_data()
 
     def init_data(self):
@@ -121,7 +122,7 @@ class SerialWorker(QThread):
     def process_data(self, position_change):
         try:
             # Use fixed delta_time based on sample interval
-            delta_time = SAMPLE_INTERVAL / 1000.0  # Convert milliseconds to seconds
+            delta_time = self.sample_interval_ms / 1000.0  # Convert milliseconds to seconds
 
             # Calculate speed
             speed = self.calculate_speed(position_change, delta_time)
@@ -132,7 +133,7 @@ class SerialWorker(QThread):
             self.speeds.append(speed)
 
             # Optionally update GUI label or emit a signal for speed update
-            self.serialSpeedUpdated.emit(speed)
+            self.serialSpeedUpdated.emit((current_time - self.start_time), speed)
         except Exception as e:
             print(f"Exception in processData: {e}")
 
