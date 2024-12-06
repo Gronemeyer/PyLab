@@ -11,6 +11,7 @@ class DevEngine(MDAEngine):
         self._mmc = mmc
         self.use_hardware_sequencing = use_hardware_sequencing
         self._config = None
+        self._encoder: SerialWorker = None
         print('DevEngine initialized')
         
     def set_config(self, cfg) -> None:
@@ -55,7 +56,7 @@ class DevEngine(MDAEngine):
                 else:
                     if count == n_events:
                         logging.debug(f'{self.__str__()} stopped MDA: \n{self._mmc} with \n{count} events and \n{remaining} remaining with \n{self._mmc.getRemainingImageCount()} images in buffer')
-                        #self._mmc.stopSequenceAcquisition() 
+                        self._mmc.stopSequenceAcquisition() 
                         break
                     time.sleep(0.001)
             else:
@@ -75,4 +76,8 @@ class DevEngine(MDAEngine):
     def teardown_sequence(self, sequence: useq.MDASequence) -> None:
         """Perform any teardown required after the sequence has been executed."""
         logging.info(f'{self.__str__()} teardown_sequence at time: {time.time()}')
+        self._encoder.stop()
+        # Get and store the encoder data
+        self._wheel_data = self._encoder.get_data()
+        self._config.save_wheel_encoder_data(self._wheel_data)
         pass

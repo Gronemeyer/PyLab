@@ -173,7 +173,7 @@ class ImagePreview(QWidget):
 
         # Connect events for the mmcore
         ev = self._mmcore.events
-        ev.imageSnapped.connect(self._on_image_snapped)
+        #ev.imageSnapped.connect(self._on_image_snapped)
         ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
         ev.sequenceAcquisitionStarted.connect(self._on_streaming_start)
         ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
