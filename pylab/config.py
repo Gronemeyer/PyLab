@@ -48,8 +48,8 @@ class ExperimentConfig:
 
         # Extract FPS values from Startup instance, if available
 
-        self.dhyana_fps: int = self.hardware.dhyana_fps
-        self.thorcam_fps: int = self.hardware.thorcam_fps 
+        self.dhyana_fps: int = self.hardware._dhyana_fps
+        self.thorcam_fps: int = self.hardware._thorcam_fps 
         
         self.notes: list = []
 

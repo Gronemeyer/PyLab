@@ -180,9 +180,9 @@ class Startup:
             f'\nCORES:\n'
             f"====================\n"
             f"MMCORE 1={repr(self.widefield)}"
-            f"  dhyana_fps={self.dhyana_fps}\n\n"
+            f"  dhyana_fps={self._dhyana_fps}\n\n"
             f"MMCORE 2={repr(self.thorcam)}"
-            f"  thorcam_fps={self.thorcam_fps} \n"
+            f"  thorcam_fps={self._thorcam_fps} \n"
         )
 
     @classmethod
