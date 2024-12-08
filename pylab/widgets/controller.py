@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import subprocess #for PsychoPy Subprocess
 import datetime
@@ -17,8 +18,10 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QTableWidgetItem,
     QMessageBox,
-    QInputDialog
+    QInputDialog,
+    QDialog,
 )
+from PyQt6.QtGui import QImage, QPixmap
 
 from pymmcore_plus import CMMCorePlus
 
@@ -134,6 +137,9 @@ class ConfigController(QWidget):
         self.add_note_button = QPushButton("Add Note")
         self.layout.addWidget(self.add_note_button)
 
+        # 7. Add a snap image button for self._mmc1.snap() 
+        self.snap_button = QPushButton("Snap Image")
+        self.layout.addWidget(self.snap_button)
 
         # ------------------------------------------------------------------------------------- #
 
@@ -146,6 +152,7 @@ class ConfigController(QWidget):
         self.test_led_button.clicked.connect(self._test_led)
         self.stop_led_button.clicked.connect(self._stop_led)
         self.add_note_button.clicked.connect(self._add_note)
+        self.snap_button.clicked.connect(lambda: self._save_snapshot(self._mmc1.snap()))
 
         # ------------------------------------------------------------------------------------- #
 
@@ -153,6 +160,45 @@ class ConfigController(QWidget):
         self._refresh_config_table()
 
     # ============================== Public Class Methods ============================================ #
+
+    def _save_snapshot(self, image: np.ndarray):
+        """Creates a PyQt popup window for saving the snapped image."""
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.figure import Figure
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Save Snapped Image")
+        layout = QVBoxLayout(dialog)
+
+        fig = Figure()
+        canvas = FigureCanvas(fig)
+        ax = fig.add_subplot(111)
+        ax.imshow(image, cmap='gray')
+        layout.addWidget(canvas)
+        
+        # Save button
+        save_button = QPushButton("Save", dialog)
+        layout.addWidget(save_button)
+
+        save_button.clicked.connect(lambda: self._save_image(image, dialog))
+
+        dialog.exec()
+
+    def _save_image(self, image: np.ndarray, dialog: QDialog):
+        """Save the snapped image to the specified directory with a unique filename."""
+
+        # Generate a unique filename with a timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = self.config._generate_unique_file_path(f"snapped_{timestamp}")
+        file_path = os.path.join(self.config.bids_dir, filename)
+
+        # Save the image as a PNG file using matplotlib
+        import matplotlib.pyplot as plt
+
+        plt.imsave(file_path + '.png', image, cmap='gray')
+
+        # Close the dialog
+        dialog.accept()
 
     def record(self):
         """Run the MDA sequence with the global Config object parameters loaded from JSON."""

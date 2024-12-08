@@ -1,15 +1,19 @@
+import os
+
 from pymmcore_plus import CMMCorePlus
 
 # Necessary modules for the IPython console
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.inprocess import QtInProcessKernelManager
 
-from qtpy.QtWidgets import (
+from PyQt6.QtWidgets import (
     QMainWindow, 
     QWidget, 
     QHBoxLayout, 
     QVBoxLayout,
 )
+
+from PyQt6.QtGui import QIcon
 
 from pylab.widgets import MDA, ConfigController, EncoderWidget
 from pylab.config import ExperimentConfig
@@ -17,9 +21,11 @@ from pylab.config import ExperimentConfig
 class MainWindow(QMainWindow):
     def __init__(self, cfg: ExperimentConfig):
         super().__init__()
-        self.setWindowTitle("Main Widget with Two MDA Widgets")
+        self.setWindowTitle("Mesofield")
         self.config: ExperimentConfig = cfg
 
+        window_icon = QIcon(os.path.join(os.path.dirname(__file__), "Mesofield_icon.png"))
+        self.setWindowIcon(window_icon)
         #============================== Widgets =============================#
         self.acquisition_gui = MDA(self.config)
         self.config_controller = ConfigController(self.config)

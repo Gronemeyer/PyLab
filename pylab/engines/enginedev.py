@@ -55,7 +55,7 @@ class DevEngine(MDAEngine):
                 else:
                     if count == n_events:
                         logging.debug(f'{self.__str__()} stopped MDA: \n{self._mmc} with \n{count} events and \n{remaining} remaining with \n{self._mmc.getRemainingImageCount()} images in buffer')
-                        self._mmc.stopSequenceAcquisition() 
+                        #self._mmc.stopSequenceAcquisition() 
                         break
                     time.sleep(0.001)
             else:

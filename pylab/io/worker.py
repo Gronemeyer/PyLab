@@ -1,7 +1,7 @@
 import random
 import time
-from queue import Queue
 import math
+from queue import Queue
 
 from PyQt6.QtCore import pyqtSignal, QThread
 
@@ -9,7 +9,6 @@ from pylab.io import DataManager
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from pylab.startup import EncoderConfig
     from pylab.config import ExperimentConfig
 
 class SerialWorker(QThread):
@@ -18,21 +17,37 @@ class SerialWorker(QThread):
     serialDataReceived = pyqtSignal(int)
     serialStreamStarted = pyqtSignal()
     serialStreamStopped = pyqtSignal()
-    serialSpeedUpdated = pyqtSignal(float)
+    serialSpeedUpdated = pyqtSignal(float, float)
     # ======================================================== #
 
-    def __init__(self, config):
+    def __init__(self, 
+                 serial_port: str = None, 
+                 baud_rate: int = None, 
+                 sample_interval: int = None, 
+                 wheel_diameter: float = None,
+                 cpr: int = None,
+                 development_mode=False):
+        
         super().__init__()
+
         self.data_manager = DataManager()
         self.data_queue: Queue = self.data_manager.data_queue
-        self.stored_data = []
-        self.config: EncoderConfig = config
+
+        self.development_mode = development_mode
+
+        self.serial_port = serial_port
+        self.baud_rate = baud_rate
+        self.sample_interval_ms = sample_interval
+        self.diameter_cm = wheel_diameter
+        self.cpr = cpr
 
         self.init_data()
 
     def init_data(self):
+        self.stored_data = []
         self.times = []
         self.speeds = []
+        self.clicks = []
         self.start_time = None
 
     def start(self) -> None:
@@ -43,7 +58,7 @@ class SerialWorker(QThread):
         self.init_data()
         self.start_time = time.time()
         try:
-            if self.config.development_mode:
+            if self.development_mode:
                 self.run_development_mode()
             else:
                 self.run_serial_mode()
@@ -53,7 +68,7 @@ class SerialWorker(QThread):
     def run_serial_mode(self):
         try:
             import serial
-            self.arduino = serial.Serial(self.config.port, self.config.baudrate, timeout=0.1)
+            self.arduino = serial.Serial(self.serial_port, self.baud_rate, timeout=0.1)
             self.arduino.flushInput()  # Flush any existing input
             print("Serial port opened.")
         except serial.SerialException as e:
@@ -100,7 +115,7 @@ class SerialWorker(QThread):
             except Exception as e:
                 print(f"Exception in DevelopmentSerialWorker: {e}")
                 self.requestInterruption()
-            self.msleep(self.config.sample_interval_ms)  # Sleep for sample interval to reduce CPU usage
+            self.msleep(self.sample_interval_ms)  # Sleep for sample interval to reduce CPU usage
 
     def stop(self):
         self.requestInterruption()
@@ -108,14 +123,29 @@ class SerialWorker(QThread):
         self.serialStreamStopped.emit()
         
     def get_data(self):
-        experiment_data = self.stored_data
+        import pandas as pd
+
+        clicks = self.clicks
+        times = self.times
+        speeds = self.speeds
+        data = {
+            'Clicks': clicks,
+            'Time': times,
+            'Speed': speeds
+        }
+        encoder_df = pd.DataFrame(data)
+        return encoder_df
+    
+    def clear_data(self):
         self.stored_data = []
-        return experiment_data
+        self.times = []
+        self.speeds = []
+        self.start_time = time.time()
     
     def process_data(self, position_change):
         try:
             # Use fixed delta_time based on sample interval
-            delta_time = self.config.sample_interval_ms / 1000.0  # Convert milliseconds to seconds
+            delta_time = self.sample_interval_ms / 1000.0  # Convert milliseconds to seconds
 
             # Calculate speed
             speed = self.calculate_speed(position_change, delta_time)
@@ -124,17 +154,34 @@ class SerialWorker(QThread):
             current_time = time.time()
             self.times.append(current_time - self.start_time)
             self.speeds.append(speed)
+            self.clicks.append(position_change)
 
             # Optionally update GUI label or emit a signal for speed update
-            self.serialSpeedUpdated.emit(speed)
+            self.serialSpeedUpdated.emit((current_time - self.start_time), speed)
         except Exception as e:
             print(f"Exception in processData: {e}")
 
     def calculate_speed(self, delta_clicks, delta_time):
-        rotations = delta_clicks / self.config.cpr
-        distance = self.config.reverse * rotations * (math.pi * self.config.diameter_cm)  # Circumference * rotations
+        reverse = -1  # Placeholder for direction configuration
+
+        rotations = delta_clicks / self.cpr
+        distance = reverse * rotations * (math.pi * self.diameter_cm)  # Circumference * rotations
         speed = distance / delta_time
         return speed
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        module_name = self.__module__
+        parent_classes = [cls.__name__ for cls in self.__class__.__bases__]
+        return (
+            f"<{class_name} {parent_classes} from {module_name}> \nAttributes: \n"
+            f"Serial Port: {self.serial_port}\n"
+            f"Baud Rate: {self.baud_rate}\n"
+            f"Sample Interval (ms): {self.sample_interval_ms}\n"
+            f"Wheel Diameter (cm): {self.diameter_cm}\n"
+            f"CPR: {self.cpr}\n"
+            f"Development Mode: {self.development_mode}\n"
+        )
 
 # Usage Example:
 # Replace the original SerialWorker instantiation with SerialWorker in development mode

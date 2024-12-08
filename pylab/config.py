@@ -5,8 +5,6 @@ import pandas as pd
 import os
 import useq
 import warnings
-import logging
-
 from pymmcore_plus import CMMCorePlus
 
 from typing import TYPE_CHECKING
@@ -46,13 +44,12 @@ class ExperimentConfig:
         if development_mode: 
             self.hardware = Startup() 
         else:
-            self.hardware = Startup.from_json(os.path.join(os.path.dirname(__file__), path))
+            self.hardware = Startup._from_json(os.path.join(os.path.dirname(__file__), path))
 
         # Extract FPS values from Startup instance, if available
 
-        self.dhyana_fps: int = self.hardware.dhyana_fps
-        self.thorcam_fps: int = self.hardware.thorcam_fps 
-        self._encoder = self.hardware.encoder.worker
+        self.dhyana_fps: int = self.hardware._dhyana_fps
+        self.thorcam_fps: int = self.hardware._thorcam_fps 
         
         self.notes: list = []
 
@@ -63,7 +60,7 @@ class ExperimentConfig:
 
     @property
     def encoder(self) -> SerialWorker:
-        return self._encoder
+        return self.hardware.encoder.worker
 
     @property
     def save_dir(self) -> str:
