@@ -7,7 +7,7 @@ import os
 
 import click
 from PyQt6.QtWidgets import QApplication
-from pylab.maingui import MainWindow
+from pylab.gui.maingui import MainWindow
 from pylab.config import ExperimentConfig
 from pylab.startup import Startup
 '''
@@ -29,20 +29,17 @@ def cli():
 
 @cli.command()
 @click.option('--dev', default=False, help='launch in development mode with simulated MMCores.')
-def launch(dev):
+@click.option('--params', default='params.json', help='Path to the config JSON file.')
+def launch(dev, params):
     """
     Launch mesofield acquisition interface 
 
     """
     print('Launching mesofield acquisition interface...')
     app = QApplication([])
-    config_path = 'params.json'
+    config_path = params
     config = ExperimentConfig(config_path, dev)
     config.hardware.initialize_cores(config)
-    # if dev:
-    #     mmconfig.dev_cores.set_config(config)
-    # else:
-    #     mmconfig.meso_engine.set_config(config)
     mesofield = MainWindow(config)
     mesofield.show()
     app.exec_()

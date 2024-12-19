@@ -1,8 +1,22 @@
 from . import *
 import logging
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from pylab.io import DataManager, SerialWorker
 
 class PupilEngine(MDAEngine):
-    
+    def __init__(self, mmc: pymmcore_plus.CMMCorePlus, use_hardware_sequencing: bool = True) -> None:
+        super().__init__(mmc)
+        self._mmc = mmc
+        self.use_hardware_sequencing = use_hardware_sequencing
+        self._config = None
+        self._encoder: SerialWorker = None
+        self._wheel_data = None
+        
+    def set_config(self, cfg) -> None:
+        self._config = cfg
+        self._encoder = cfg.encoder
+        
     def exec_sequenced_event(self, event: 'SequencedEvent') -> Iterable['PImagePayload']:
         """Execute a sequenced (triggered) event and return the image data.
 

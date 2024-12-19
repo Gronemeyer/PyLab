@@ -220,25 +220,11 @@ class ConfigController(QWidget):
         self.config.encoder.start()
         self.recordStarted.emit() # Signals to start the MDA sequence
 
-
     def launch_psychopy(self):
         """Launches a PsychoPy experiment as a subprocess with the current ExperimentConfig parameters."""
-        # Build the command arguments
-        args = [
-            "C:\\Program Files\\PsychoPy\\python.exe",
-            f'{self.config.psychopy_path}',
-            f'{self.config.protocol}',
-            f'{self.config.subject}',
-            f'{self.config.session}',
-            f'{self.config.save_dir}',
-            f'{self.config.num_trials}'
-        ]
+        from pylab.subprocesses import psychopy
 
-        # Create and start the QProcess
-        self.psychopy_process = QProcess(self)
-        self.psychopy_process.finished.connect(self._handle_process_finished)
-        self.psychopy_process.start(args[0], args[1:])
-
+        self.psychopy_process = psychopy.launch(self.config, self)
 
     def _handle_process_finished(self, exit_code, exit_status):
         from PyQt6.QtCore import QProcess
