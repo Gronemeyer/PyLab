@@ -21,23 +21,6 @@ The client terminal commands are:
 
 '''
 
-PARAMETERS = {
-    'mmc1_path': 'C:/Program Files/Micro-Manager-2.0gamma',
-    'mmc2_path': 'C:/Program Files/Micro-Manager-thor',
-    'mmc1_configuration_path': 'C:/Program Files/Micro-Manager-2.0/mm-sipefield.cfg',
-    'mmc2_configuration_path': 'C:/Program Files/Micro-Manager-2.0/ThorCam.cfg',
-    'memory_buffer_size': 10000,
-    'dhyana_fps': 49,
-    'thorcam_fps': 30,
-    'encoder': {
-        'type': 'dev',
-        'port': 'COM4',
-        'baudrate': '57600',
-        'CPR': '2400',
-        'diameter_cm': '0.1',
-        'sample_interval_ms': '20'
-    }
-    }
 
 @click.group()
 def cli():
@@ -55,7 +38,7 @@ def launch(dev):
     app = QApplication([])
     config_path = 'params.json'
     config = ExperimentConfig(config_path, dev)
-    config.hardware.initialize_cores()
+    config.hardware.initialize_cores(config)
     # if dev:
     #     mmconfig.dev_cores.set_config(config)
     # else:

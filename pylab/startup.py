@@ -78,7 +78,7 @@ class Core:
     trigger_port: Optional[int] = None
     properties: Dict[str, str] = field(default_factory=dict)
     core: Optional[CMMCorePlus] = field(default=None, init=False)
-    engine: Optional[Engine] = None
+    engine: Optional[MDAEngine] = None
 
     def __repr__(self):
         return (
@@ -112,9 +112,9 @@ class Core:
         
     def _load_engine(self):
         ''' Load the engine for the core '''
-        engine = self.engine.create_engine(self.core)
-        self.core.mda.set_engine(engine)
-        logging.info(f"Core loaded for {self.name} from {self.configuration_path} with memory footprint: {self.core.getCircularBufferMemoryFootprint()} MB and engine {self.engine.name}")
+        self.engine = self.engine.create_engine(self.core)
+        self.core.mda.set_engine(self.engine)
+        logging.info(f"Core loaded for {self.name} from {self.configuration_path} with memory footprint: {self.core.getCircularBufferMemoryFootprint()} MB and engine {self.engine}")
 
     def load_properties(self):
         # Load specific properties into the core
@@ -212,10 +212,12 @@ class Startup:
         
         return cls(**json_data)
     
-    def initialize_cores(self):
+    def initialize_cores(self, cfg):
         # Initialize widefield and thorcam cores
         self.widefield._load_core()
         self.thorcam._load_core()
+        self.widefield.engine.set_config(cfg)
+        self.thorcam.engine.set_config(cfg)
         logging.info("Cores initialized")
 
 
