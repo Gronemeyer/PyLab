@@ -134,13 +134,12 @@ class ExperimentConfig:
         return f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}.tiff"
 
     @property
-    def bids_dir(self, type: str = 'func') -> str:
+    def bids_dir(self) -> str:
         """ Dynamic construct of BIDS directory path """
         bids = os.path.join(
             f"{self.protocol}",
             f"sub-{self.subject}",
             f"ses-{self.session}",
-            type #TODO: Have this supprt dynamic switching between func and beh
         )
         return os.path.abspath(os.path.join(self.save_dir, bids))
 
@@ -148,13 +147,13 @@ class ExperimentConfig:
     @property
     def meso_file_path(self):
         file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}_meso.ome.tiff"
-        return self._generate_unique_file_path(file)
+        return self._generate_unique_file_path(file, 'func')
 
     # Property for pupil file path, if needed
     @property
     def pupil_file_path(self):
         file = f"{self.protocol}-sub-{self.subject}_ses-{self.session}_task-{self.task}_pupil.ome.tiff"
-        return self._generate_unique_file_path(file)
+        return self._generate_unique_file_path(file, 'func')
 
     @property
     def dataframe(self):
@@ -200,26 +199,28 @@ class ExperimentConfig:
             raise ValueError("led_pattern must be a list or a JSON string representing a list")
     
     # Helper method to generate a unique file path
-    def _generate_unique_file_path(self, file):
+    def _generate_unique_file_path(self, file, bids_type: str = 'func'):
         """
-        Generates a unique file path in the specified directory by appending a counter to the file name if a file with the same name already exists.
+        Generates a unique file path in the specified bids_type directory by appending a counter to the file name if a file with the same name already exists.
         Args:
             file (str): The name of the file for which a unique path is to be generated.
+            bids_type (str): The subdirectory within the BIDS directory.
         Returns:
-            str: A unique file path within the specified directory.
+            str: A unique file path within the specified bids_type directory.
         Example:
-            If `self.bids_dir` is "/path/to/dir" and `file` is "example.txt":
-            - If "/path/to/dir/example.txt" does not exist, the function returns "/path/to/dir/example.txt".
-            - If "/path/to/dir/example.txt" exists, the function returns "/path/to/dir/example_1.txt".
-            - If both "/path/to/dir/example.txt" and "/path/to/dir/example_1.txt" exist, the function returns "/path/to/dir/example_2.txt".
+            If `self.bids_dir` is "/path/to/dir", `bids_type` is "func", and `file` is "example.txt":
+            - If "/path/to/dir/func/example.txt" does not exist, the function returns "/path/to/dir/func/example.txt".
+            - If "/path/to/dir/func/example.txt" exists, the function returns "/path/to/dir/func/example_1.txt".
+            - If both "/path/to/dir/func/example.txt" and "/path/to/dir/func/example_1.txt" exist, the function returns "/path/to/dir/func/example_2.txt".
         """
         
-        os.makedirs(self.bids_dir, exist_ok=True)
+        bids_path = os.path.join(self.bids_dir, bids_type)
+        os.makedirs(bids_path, exist_ok=True)
         base, ext = os.path.splitext(file)
         counter = 1
-        file_path = os.path.join(self.bids_dir, file)
+        file_path = os.path.join(bids_path, file)
         while os.path.exists(file_path):
-            file_path = os.path.join(self.bids_dir, f"{base}_{counter}{ext}")
+            file_path = os.path.join(bids_path, f"{base}_{counter}{ext}")
             counter += 1
         return file_path
     
@@ -288,8 +289,9 @@ class ExperimentConfig:
         filename = f'{self.subject}_session-{self.session}_encoder-data.csv'
         params_file = f'session_{self.session}_configuration.csv'
 
-        unique_filename = self._generate_unique_file_path(filename)
-        params_path = self._generate_unique_file_path(params_file)
+        unique_filename = self._generate_unique_file_path(filename, 'beh')
+        params_path = self._generate_unique_file_path(params_file, 'beh')
+        self.save_parameters()
         # Step up one hierarchy and then step back into the /beh folder
         # beh_dir = os.path.abspath(os.path.join(self.bids_dir, '..', 'beh'))
         # os.makedirs(beh_dir, exist_ok=True)
