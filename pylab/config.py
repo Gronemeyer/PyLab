@@ -241,32 +241,14 @@ class ExperimentConfig:
     def update_parameter(self, key, value) -> None:
         """ Update a parameter in the config object """
         self._parameters[key] = value
-    
-    def list_parameters(self):
-        properties = [prop for prop in dir(self.__class__) if isinstance(getattr(self.__class__, prop), property)]
-        return {prop: getattr(self, prop) for prop in properties}
-    
-    def list_parameters2(self) -> pd.DataFrame:
+        
+    def list_parameters(self) -> pd.DataFrame:
         """ Create a DataFrame from the ExperimentConfig properties """
         properties = [prop for prop in dir(self.__class__) if isinstance(getattr(self.__class__, prop), property)]
         exclude_properties = {'dataframe', 'parameters'}
         data = {prop: getattr(self, prop) for prop in properties if prop not in exclude_properties}
         return pd.DataFrame(data.items(), columns=['Parameter', 'Value'])
-    
-    def list_parameters3(self) -> str:
-        """ Convert the ExperimentConfig properties to a JSON string """
-        properties = [prop for prop in dir(self.__class__) if isinstance(getattr(self.__class__, prop), property)]
-        exclude_properties = {'_cores', 'dataframe', 'parameters'}
-        data = {prop: getattr(self, prop) for prop in properties if prop not in exclude_properties}
         
-        # Convert MDASequence objects to JSON
-        if 'meso_sequence' in data:
-            data['meso_sequence'] = data['meso_sequence'].json()
-        if 'pupil_sequence' in data:
-            data['pupil_sequence'] = data['pupil_sequence'].json()
-        
-        return json.dumps(data, indent=4)
-    
     def save_parameters(self, filename='parameters.json') -> None:
         """
         Save the current parameters to a JSON file in the save directory.
@@ -303,9 +285,18 @@ class ExperimentConfig:
         if isinstance(data, list):
             data = pd.DataFrame(data)
             
-        filename = f'{self.subject}_{self.task}_{self.session}_encoder_data.csv'
+        filename = f'{self.subject}_session-{self.session}_encoder-data.csv'
+        params_file = f'session_{self.session}_configuration.csv'
+
         unique_filename = self._generate_unique_file_path(filename)
+        params_path = self._generate_unique_file_path(params_file)
+        # Step up one hierarchy and then step back into the /beh folder
+        # beh_dir = os.path.abspath(os.path.join(self.bids_dir, '..', 'beh'))
+        # os.makedirs(beh_dir, exist_ok=True)
+        # unique_filename = os.path.join(beh_dir, os.path.basename(unique_filename))
         try:
+            params = self.list_parameters()
+            params.to_csv(params_path, index=False)
             data.to_csv(unique_filename, index=False)
             print(f"Encoder data saved to {unique_filename}")
         except Exception as e:
