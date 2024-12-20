@@ -9,24 +9,21 @@ Awesome pylab created by Gronemeyer
 
 ## Install it from PyPI
 
+## Installation
+
+Clone the repository:
+
 ```bash
-pip install pylab
-```
+git clone https://github.com/yourusername/yourrepository.git
+cd yourrepository
 
 ## Usage
 
-```py
-from pylab import BaseClass
-from pylab import base_function
-
-BaseClass().base_method()
-base_function()
-```
 
 ```bash
-$ python -m pylab
+$ python -m pylab launch
 #or
-$ pylab
+$ python -m pylab launch --dev True
 ```
 
 ## Adding a configuration file to a mmc.core() object
