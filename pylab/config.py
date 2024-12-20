@@ -249,36 +249,6 @@ class ExperimentConfig:
         exclude_properties = {'dataframe', 'parameters'}
         data = {prop: getattr(self, prop) for prop in properties if prop not in exclude_properties}
         return pd.DataFrame(data.items(), columns=['Parameter', 'Value'])
-        
-    def save_parameters(self, filename='parameters.json') -> None:
-        """
-        Save the current parameters to a JSON file in the save directory.
-        """
-        filename = f'{self.subject}_{self.task}_ExperimentConfig.json'
-        save_path = os.path.join(self.bids_dir, filename)
-
-        properties = [prop for prop in dir(self.__class__) if isinstance(getattr(self.__class__, prop), property)]
-        exclude_properties = {'dataframe', 'pupil_sequence', 'meso_sequence', 'parameters', 'filename', 'json_path', 'save_dir',}
-        parameters = {prop: getattr(self, prop) for prop in properties if prop not in exclude_properties}
-        
-        # dump it all to json
-        try:
-            with open(save_path, 'w') as file:
-                json.dump(parameters, file, indent=4)
-            print(f"Parameters saved to {save_path}")
-        except Exception as e:
-            print(f"Error saving parameters: {e}")
-            
-        # save any notes to a text file    
-        if self.notes:
-            notes_filename = f'{self.subject}_{self.task}_notes.txt'
-            notes_path = os.path.join(self.bids_dir, notes_filename)
-            try:
-                with open(notes_path, 'w') as notes_file:
-                    notes_file.write('\n'.join(self.notes))
-                print(f"Notes saved to {notes_path}")
-            except Exception as e:
-                print(f"Error saving notes: {e}")
                 
     def save_wheel_encoder_data(self, data):
         """ Save the wheel encoder data to a CSV file """
@@ -291,11 +261,7 @@ class ExperimentConfig:
 
         unique_filename = self._generate_unique_file_path(filename, 'beh')
         params_path = self._generate_unique_file_path(params_file, 'beh')
-        self.save_parameters()
-        # Step up one hierarchy and then step back into the /beh folder
-        # beh_dir = os.path.abspath(os.path.join(self.bids_dir, '..', 'beh'))
-        # os.makedirs(beh_dir, exist_ok=True)
-        # unique_filename = os.path.join(beh_dir, os.path.basename(unique_filename))
+
         try:
             params = self.list_parameters()
             params.to_csv(params_path, index=False)
