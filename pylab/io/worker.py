@@ -38,7 +38,7 @@ class SerialWorker(QThread):
         self.serial_port = serial_port
         self.baud_rate = baud_rate
         self.sample_interval_ms = sample_interval
-        self.diameter_cm = wheel_diameter
+        self.diameter_mm = wheel_diameter
         self.cpr = cpr
 
         self.init_data()
@@ -162,10 +162,12 @@ class SerialWorker(QThread):
             print(f"Exception in processData: {e}")
 
     def calculate_speed(self, delta_clicks, delta_time):
-        reverse = -1  # Placeholder for direction configuration
-
+        '''Calculates speed of a wheel with diameter_mm in meters/second'''
+        
+        reverse = 1  # Placeholder for direction configuration
+        diameter_m = self.diameter_mm / 1000.0 #convert millimeters to meters
         rotations = delta_clicks / self.cpr
-        distance = reverse * rotations * (math.pi * self.diameter_cm)  # Circumference * rotations
+        distance = reverse * rotations * (math.pi * diameter_m)  # Circumference * rotations
         speed = distance / delta_time
         return speed
 
@@ -178,7 +180,7 @@ class SerialWorker(QThread):
             f"Serial Port: {self.serial_port}\n"
             f"Baud Rate: {self.baud_rate}\n"
             f"Sample Interval (ms): {self.sample_interval_ms}\n"
-            f"Wheel Diameter (cm): {self.diameter_cm}\n"
+            f"Wheel Diameter (mm): {self.diameter_mm}\n"
             f"CPR: {self.cpr}\n"
             f"Development Mode: {self.development_mode}\n"
         )

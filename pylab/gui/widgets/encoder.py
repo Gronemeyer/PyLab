@@ -40,7 +40,7 @@ class EncoderWidget(QWidget):
         self.speed_curve = self.plot_widget.plot(pen='y')
 
         # Limit the range of the y-axis to +/- 2
-        self.plot_widget.setYRange(-2, 2)
+        self.plot_widget.setYRange(-1, 1)
         self.plot_widget.showGrid(x=True, y=True)
         
         #================================= SerialWorker Signals ================================#
@@ -76,6 +76,7 @@ class EncoderWidget(QWidget):
         self.times = self.times[-100:]
         self.speeds = self.speeds[-100:]
         self.update_plot()
+        self.status_label.setText(f"Speed: {speed:.2f} m/s")
 
     def update_plot(self):
         try:

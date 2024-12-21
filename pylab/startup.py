@@ -24,7 +24,7 @@ class Encoder:
     port: str = 'COM4'
     baudrate: int = 57600
     cpr: int = 2400
-    diameter_cm: float = 0.1
+    diameter_mm: float = 80
     sample_interval_ms: int = 20
     reverse: int = -1
     worker: Optional[SerialWorker] = None
@@ -35,7 +35,7 @@ class Encoder:
             serial_port=self.port,
             baud_rate=self.baudrate,
             sample_interval=self.sample_interval_ms,
-            wheel_diameter=self.diameter_cm,
+            wheel_diameter=self.diameter_mm,
             cpr=self.cpr,
             development_mode=True if self.type == 'dev' else False,
         )

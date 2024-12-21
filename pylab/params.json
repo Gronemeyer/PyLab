@@ -9,7 +9,7 @@
       "port": "COM4",
       "baudrate": 57600,
       "cpr": 2400,
-      "diameter_cm": 0.1,
+      "diameter_mm": 80,
       "sample_interval_ms": 20
     },
     "thorcam": {
