@@ -51,6 +51,7 @@ class MainWindow(QMainWindow):
         toggle_console_action.triggered.connect(self.toggle_console)
         self.config_controller.configUpdated.connect(self._update_config)
         self.config_controller.recordStarted.connect(self.record)
+        #self.config_controller._mmc1.events.sequenceAcquisitionStopped.connect(self._on_end)
         #--------------------------------------------------------------------#
 
 
@@ -112,7 +113,7 @@ class MainWindow(QMainWindow):
     #============================== Private Methods =============================#
     def _on_end(self) -> None:
         """Called when the MDA is finished."""
-        self.config_controller.save_config()
+        #self.config_controller.save_config()
         self.plots()
 
     def _update_config(self, config):
