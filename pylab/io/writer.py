@@ -51,7 +51,7 @@ from pathlib import Path
 import json
 
 IMAGEJ_AXIS_ORDER = "tzcyxs"
-FRAME_MD_FILENAME = "_frame_metadata.json"
+FRAME_MD_FILENAME = "metadata.json"
 
 class CustomWriter(_5DWriterBase[np.memmap]):
     """Custom Override of Pymmcore-Plus MDA handler that writes to a 5D OME-TIFF file.
@@ -91,7 +91,7 @@ class CustomWriter(_5DWriterBase[np.memmap]):
     ) -> None:
         """Write a frame to the file."""
         ary[index] = frame
-        print(f"Writing frame {index} to {ary.filename}")
+        print(f"Writing frame {index}")
 
     def new_array(
         self, position_key: str, dtype: np.dtype, sizes: dict[str, int]

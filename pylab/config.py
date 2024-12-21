@@ -199,22 +199,30 @@ class ExperimentConfig:
             raise ValueError("led_pattern must be a list or a JSON string representing a list")
     
     # Helper method to generate a unique file path
-    def _generate_unique_file_path(self, file, bids_type: str = 'func'):
+    def _generate_unique_file_path(self, file, bids_type: str = None):
         """
-        Generates a unique file path in the specified bids_type directory by appending a counter to the file name if a file with the same name already exists.
-        Args:
-            file (str): The name of the file for which a unique path is to be generated.
-            bids_type (str): The subdirectory within the BIDS directory.
-        Returns:
-            str: A unique file path within the specified bids_type directory.
-        Example:
-            If `self.bids_dir` is "/path/to/dir", `bids_type` is "func", and `file` is "example.txt":
-            - If "/path/to/dir/func/example.txt" does not exist, the function returns "/path/to/dir/func/example.txt".
-            - If "/path/to/dir/func/example.txt" exists, the function returns "/path/to/dir/func/example_1.txt".
-            - If both "/path/to/dir/func/example.txt" and "/path/to/dir/func/example_1.txt" exist, the function returns "/path/to/dir/func/example_2.txt".
-        """
+        Generates a unique file path by adding a counter if the file already exists.
         
-        bids_path = os.path.join(self.bids_dir, bids_type)
+            file (str): Name of the file with extension.
+            
+            bids_type (str, optional): Subdirectory within the BIDS directory. Defaults to None.
+            
+        Returns:
+        
+            str: A unique file path within the specified bids_type directory.
+            
+        Example:
+        
+        ```py
+            unique_path = _generate_unique_file_path("example.txt", "func")
+        ```
+            
+        """
+        if bids_type is None:
+            bids_path = self.bids_dir
+        else:
+            bids_path = os.path.join(self.bids_dir, bids_type)
+            
         os.makedirs(bids_path, exist_ok=True)
         base, ext = os.path.splitext(file)
         counter = 1
@@ -256,17 +264,17 @@ class ExperimentConfig:
         if isinstance(data, list):
             data = pd.DataFrame(data)
             
-        filename = f'{self.subject}_session-{self.session}_encoder-data.csv'
-        params_file = f'session_{self.session}_configuration.csv'
+        encoder_file = f'{self.subject}_ses-{self.session}_encoder-data.csv'
+        encoder_path = self._generate_unique_file_path(encoder_file, 'beh')
 
-        unique_filename = self._generate_unique_file_path(filename, 'beh')
-        params_path = self._generate_unique_file_path(params_file, 'beh')
+        params_file = f'{self.subject}_ses-{self.session}_configuration.csv'
+        params_path = self._generate_unique_file_path(params_file)
 
         try:
             params = self.list_parameters()
             params.to_csv(params_path, index=False)
-            data.to_csv(unique_filename, index=False)
-            print(f"Encoder data saved to {unique_filename}")
+            data.to_csv(encoder_path, index=False)
+            print(f"Encoder data saved to {encoder_path}")
         except Exception as e:
             print(f"Error saving encoder data: {e}")
         
