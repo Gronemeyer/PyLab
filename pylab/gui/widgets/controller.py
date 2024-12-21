@@ -189,7 +189,11 @@ class ConfigController(QWidget):
 
         # Generate a unique filename with a timestamp
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+<<<<<<< HEAD:pylab/gui/widgets/controller.py
         filename = self.config._generate_unique_file_path(f"snapped_{timestamp}", bids_type='func')
+=======
+        filename = self.config._generate_unique_file_path(f"snapped_{timestamp}")
+>>>>>>> da84531910d585a57eff03c77d6df62cb70d591f:pylab/widgets/controller.py
         file_path = os.path.join(self.config.bids_dir, filename)
 
         # Save the image as a PNG file using matplotlib
