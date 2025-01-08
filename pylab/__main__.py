@@ -6,10 +6,10 @@ import os
 # import numexpr as ne 
 
 import click
-from PyQt6.QtWidgets import QApplication
-from pylab.maingui import MainWindow
-from pylab.config import ExperimentConfig
-from pylab.startup import Startup
+#from PyQt6.QtWidgets import QApplication
+# from pylab.maingui import MainWindow
+# from pylab.config import ExperimentConfig
+# from pylab.startup import Startup
 '''
 This is the client terminal command line interface
 
@@ -64,6 +64,21 @@ def launch(dev):
     mesofield.show()
     app.exec_()
 
+@cli.command()
+@click.argument('input_path', type=click.Path(exists=True))
+@click.argument('output_path', type=click.Path())
+@click.argument('fps', type=int)
+def pupil_convert(input_path, output_path, fps):
+    """
+    Convert a TIFF file to a video file.
+    """
+    from pylab.processing.format import tiff_to_video 
+    try:
+        tiff_to_video(input_path, output_path, fps)
+        print(f"Converted {input_path} to {output_path}")
+    except ImportError:
+        raise click.ClickException("OpenCV is not installed. Please install it to use this command.")
+
 
 @cli.command()
 @click.option('--frames', default=100, help='Number of frames for the MDA test.')
@@ -72,6 +87,7 @@ def test_mda(frames):
     Run a test of the mesofield Multi-Dimensional Acquisition (MDA) 
     """
     from pylab.startup import test_mda
+
 
 @cli.command()
 def run_mda():
