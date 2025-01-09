@@ -3,6 +3,7 @@ import numpy as np
 import tifffile
 import cv2
 from tqdm import tqdm
+import os
 
 
 def tiff_to_video(
@@ -98,15 +99,46 @@ def tiff_to_video(
     print(f"Approx. processing rate: {avg_fps:.2f} frames per second")
 
 
+def parse_bids_files_and_convert(parent_directory, fps=30, output_format="mp4", use_color=False):
+    found_files = []
+    for root, dirs, files in os.walk(parent_directory):
+        for file in files:
+            if file.endswith("pupil.ome.tiff"):
+                full_path = os.path.join(root, file)
+                found_files.append(full_path)
+
+    processed_dir = os.path.join(parent_directory, "data", "processed")
+
+    print("Identified the following TIFF files:")
+    for file_path in found_files:
+        print(file_path)
+    print(f"\nProcessed data will be saved to: {processed_dir}")
+
+    user_input = input("\nContinue with conversion? (y/n): ")
+    if user_input.lower().startswith('y'):
+        os.makedirs(processed_dir, exist_ok=True)
+        for file_path in found_files:
+            base_filename = os.path.splitext(os.path.basename(file_path))[0]
+            output_path = os.path.join(processed_dir, base_filename + f".{output_format}")
+            tiff_to_video(
+                tiff_path=file_path,
+                output_path=output_path,
+                fps=fps,
+                output_format=output_format,nonlocal
+                use_color=use_color
+            )
+    else:
+        print("Conversion canceled.")
+
+
 if __name__ == "__main__":
     tiff_path = r"C:\Users\SIPE_LAB\Desktop\habituation-sub-GS18_ses-01_task-widefield_pupil.ome.tiff"   # Replace with your TIFF file path
     output_path = r"C:/Users/SIPE_LAB/Desktop/output_video.mp4" # Could be "output_video.mp4"
     frames_per_second = 30
 
-    tiff_to_video(
-        tiff_path=tiff_path,
-        output_path=output_path,
+    parse_bids_files_and_convert(
+        parent_directory=r"F:\jgronemeyer",
         fps=frames_per_second,
-        output_format="mp4",  
-        use_color=False       # Set True if your stack has 3 channels
+        output_format="mp4",
+        use_color=False
     )
